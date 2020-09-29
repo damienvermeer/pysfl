@@ -1,5 +1,5 @@
 SCALE_FACTOR_FROM_DBF = 1000000             #ratio to scale the DBF / shape file by
-SR_POST_POST_WIDTH = 8                      #width between posts for solar farm rows
+SR_POST_POST_WIDTH = 8.2                      #width between posts for solar farm rows
 SR_END_DELTA = 0.1                          #set-back from edge of farm boundary for first row
 SR_END_END_WIDTH = 1                        #spacing between ends of rows
 SR_ROW_LENGTHS = [91.2, 60.7, 30.4]         #rough dimensions for NX horizon 

@@ -13,16 +13,17 @@ class StripPoly:
         self.farm = farm
         self.left_strip = None
         self.right_strip = None
+        self.data = []
 
         #calculate intersection
         try:
             self.intersection = self.polygon.intersection(intersect_poly)
-            if intersection.is_empty:
+            if self.intersection.is_empty:
                 print("---/No intersection in StripPoly") if c.DEBUG == True else False
             else:
-                print("---/Found intersection: " + str(intersection)) if c.DEBUG == True else False
+                print("---/Found intersection: " + str(self.intersection)) if c.DEBUG == True else False
         except:
-            print("---/Error during intersect in StripPoly") if c.DEBUG == True else False
+            print("---/Non-critical error during intersect in StripPoly") if c.DEBUG == True else False
 
     def setLeftNeighbour(self, strip_poly):
         self.left_strip = strip_poly
@@ -41,3 +42,12 @@ class StripPoly:
 
     def getIntersectionPoly(self):
         return self.intersection
+
+    def getLeftNeighbour(self):
+        return self.left_strip
+        
+    def getRightNeighbour(self):
+        return self.right_strip
+
+    def getDataArray(self):
+        return self.data

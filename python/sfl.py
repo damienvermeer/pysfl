@@ -4,6 +4,7 @@
 import shapefile
 import Constants as c
 import Farm
+import time
 
 # code starts here --------
 
@@ -27,9 +28,14 @@ for shape in sf.iterShapes():
     farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
     
     #create strips
-    if farm.getArea() > 1000000000:
+    if farm.getArea() > 100000:
         farm.createStrips()
-        farm.plotFarm(plot_strips=True)
+        farm.populateAllSolarRows()
+        farm.printModuleNumber()
+        print("-System Size = "+str(int(0.4*farm.getModuleNumber()))+" kW dc")
+        farm.plotFarm()
+        #time.sleep(5)
+
 
     
 
