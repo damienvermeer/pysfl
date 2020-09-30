@@ -4,9 +4,12 @@ import Constants as c
 
 class SolarRow:
 
-    def __init__(self, x_corner, y_corner, row_width, row_height, num_modules, strip):
+    def __init__(self, x_corner, y_corner, row_width, row_height, num_modules, strip, align='bottom'):
         #create polygon strip
-        self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner+row_height), Point(x_corner, y_corner+row_height)])
+        if align == 'bottom':
+            self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner+row_height), Point(x_corner, y_corner+row_height)])
+        else:
+            self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner-row_height), Point(x_corner, y_corner-row_height)])
         self.num_modules = num_modules
         self.strip = strip
 

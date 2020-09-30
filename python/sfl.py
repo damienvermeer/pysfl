@@ -28,7 +28,7 @@ for shape in sf.iterShapes():
     farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
     
     #create strips
-    if farm.getArea() > 100000:
+    if farm.getArea() > 10:
         farm.createStrips()
         farm.populateAllSolarRows()
         farm.printModuleNumber()

@@ -65,7 +65,7 @@ class Farm:
         for i,e in enumerate(self.strips[:-1]):
             e.setRightNeighbour(self.strips[i+1])
 
-    def populateSolarRow(self, strip, intersect_poly):
+    def populateSolarRow(self, strip, intersect_poly,align='bottom'):
         
         #process one solar row
         xypoints_to_test = []
@@ -75,20 +75,32 @@ class Farm:
                 #uses strip's x strip offset
 
         #sort smallest to largest
-        xypoints_to_test.sort(key=lambda tup: tup[1])
+        if align == 'bottom':
+            xypoints_to_test.sort(key=lambda tup: tup[1])
+        elif align == 'top':
+            xypoints_to_test.sort(key=lambda tup: tup[1], reverse=True)
+        else:
+            raise ValueError("No valid align property passed to populateSolarRow")
 
         #for each point
         for point in xypoints_to_test:
 
             #for each row type in the acceptable list
-            yoffset = c.SR_END_DELTA
+            if align == 'bottom':
+                yoffset = c.SR_END_DELTA
+            else:
+                yoffset = -c.SR_END_DELTA
+
             for count, rowtest in enumerate(c.SR_ROW_LENGTHS):
 
                 #repeat adding rows until we run out of space
                 while True:
                 
                     #create new row
-                    new_solar_row = SolarRow.SolarRow(point[0], point[1]+yoffset, c.SR_POST_POST_WIDTH, rowtest, c.SR_NUM_MODULES_PER_ROW[count], self)
+                    if align == 'bottom':
+                        new_solar_row = SolarRow.SolarRow(point[0], point[1]+yoffset, c.SR_POST_POST_WIDTH, rowtest, c.SR_NUM_MODULES_PER_ROW[count], self, align='bottom')
+                    else:
+                        new_solar_row = SolarRow.SolarRow(point[0], point[1]+yoffset, c.SR_POST_POST_WIDTH, rowtest, c.SR_NUM_MODULES_PER_ROW[count], self, align='top')
 
                     #test if fits
                     if not intersect_poly.contains(new_solar_row.getPoly()):
@@ -97,7 +109,57 @@ class Farm:
                     #fits if get here
                     if new_solar_row not in strip.data:
                         strip.data.append(new_solar_row)
-                        yoffset += rowtest + c.SR_END_END_WIDTH
+                        if align == 'bottom':
+                            yoffset += rowtest + c.SR_END_END_WIDTH
+                        else:
+                            yoffset -= rowtest - c.SR_END_END_WIDTH
+
+
+
+
+    def populateSolarRowSmartAlign(self, strip, intersect_poly):
+            
+        #determine which edge of the intersect poly has the shallowest slope
+        
+        #first get centroid of intersect_poly
+        centroidy = intersect_poly.centroid.xy[1][0]
+        print("---/Centroid is = "+str(centroidy)) if c.DEBUG == True else False
+        
+
+        #get all xy values
+        xypoints_to_test = []
+        for point in intersect_poly.exterior.coords:
+            if point not in xypoints_to_test:
+                xypoints_to_test.append([strip.getStripPoly().bounds[0], point[1]])
+                
+            
+        #calculate bottom y_vals
+        b_y_vals = []
+        for point in xypoints_to_test:
+            if point[1] < centroidy:
+                #this is on the bottom of the intersect_poly
+                b_y_vals.append(point[1])
+
+        #calculate top y_vals
+        t_y_vals = []
+        for point in xypoints_to_test:
+            if point[1] > centroidy:
+                #this is on the top of the intersect_poly
+                t_y_vals.append(point[1])  
+
+        #calculate max deltas
+        delta_y_bottom = max(b_y_vals) - min(b_y_vals)
+        delta_y_top = max(t_y_vals) - min(t_y_vals)
+
+
+        if delta_y_bottom >= delta_y_top:
+            #this means bigger slope on the bottom then the top
+            self.populateSolarRow(strip, intersect_poly, align='top')
+            print("---/SmartAlign selected top align") if c.DEBUG == True else False
+        else:
+            self.populateSolarRow(strip, intersect_poly, align='bottom') 
+            print("---/SmartAlign selected bottoms align") if c.DEBUG == True else False   
+
 
 
     def populateAllSolarRows(self):
@@ -119,9 +181,9 @@ class Farm:
                 #get all y coords of intersect poly
                 if strip.getIntersectionPoly().geom_type == "MultiPolygon":
                     for geom in strip.getIntersectionPoly():
-                        self.populateSolarRow(strip, geom)
+                        self.populateSolarRowSmartAlign(strip, geom)
                 else:
-                    self.populateSolarRow(strip, strip.getIntersectionPoly())
+                    self.populateSolarRowSmartAlign(strip, strip.getIntersectionPoly())
                  
 
     def plotFarm(self, plot_strips=False, plot_strip_ints=True, to_image=False, plot_sf_rows=True):
