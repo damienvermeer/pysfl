@@ -23,18 +23,46 @@ for shape in sf.iterShapes():
     print("-creating farm boundary") if c.VERBOSE == True else False
     farm = Farm.Farm(shape.points)  #create farm
     farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
-    farm.translateFarmBoundaryToOrigin()    #move to origin to make easier to read
-    print("-processing setback") if c.VERBOSE == True else False
-    farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
     
-    #create strips
-    if farm.getArea() > 10:
+    if farm.getArea() > 100000:
+        farm.moveCentroidToOrigin()
+        farm.setAzimuth(58)
+        farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
         farm.createStrips()
         farm.populateAllSolarRows()
-        farm.printModuleNumber()
-        print("-System Size = "+str(int(0.4*farm.getModuleNumber()))+" kW dc")
         farm.plotFarm()
-        #time.sleep(5)
+
+
+
+
+
+
+        # maxpanel = 0
+        # bestazi = 0
+        # for azi in range(-90,90,10):
+            # print(azi)
+            # farm = Farm.Farm(shape.points)  #create farm
+            # farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
+            # farm.moveCentroidToOrigin()
+            # farm.setAzimuth(azi)
+            # farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
+            # farm.createStrips()
+            # farm.populateAllSolarRows()
+            # farm.printModuleNumber()
+            # if farm.getModuleNumber() > maxpanel:
+                # maxpanel = farm.getModuleNumber()
+                # bestazi = azi
+        
+        # print("end. best azi = " + str(bestazi) + " with #" + str(maxpanel) + " modules")
+        # farm = Farm.Farm(shape.points)  #create farm
+        # farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
+        # farm.moveCentroidToOrigin()
+        # farm.setAzimuth(bestazi)
+        # farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
+        # farm.createStrips()
+        # farm.populateAllSolarRows()
+        # farm.plotFarm()
+        
 
 
     

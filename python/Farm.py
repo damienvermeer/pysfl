@@ -12,6 +12,8 @@ class Farm:
         self.polygon = Polygon(shape_points)
         self.pre_setback_polygon = None
         self.strips = []
+        self.rotation_point = None
+        self.rotation = 0
 
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
@@ -199,26 +201,52 @@ class Farm:
                     print("--|Plotting "+str(nplot)+"/"+str(len(self.strips))) if nplot % 10 == 0 else False
                 
                 if plot_strips:
-                    plt.plot(*strip.getStripPoly().exterior.xy,'g',alpha=0.2)
-
+                    if self.rotation_point == None:
+                        plt.plot(*strip.getStripPoly().exterior.xy,'g',alpha=0.2)
+                    else:
+                        tempplot = affinity.rotate(strip.getStripPoly(), -self.rotation, origin=self.rotation_point)
+                        plt.plot(*tempplot.exterior.xy,'g',alpha=0.2)
+                    
                 #possible to have multipolys here
                 if plot_strip_ints:
                     if strip.getIntersectionPoly().geom_type == "MultiPolygon":
                         for strip_poly in strip.getIntersectionPoly():
-                            plt.plot(*strip_poly.exterior.xy,'b')
+                            if self.rotation_point == None:
+                                plt.plot(*strip_poly.exterior.xy,'b')
+                            else:
+                                tempplot = affinity.rotate(strip_poly, -self.rotation, origin=self.rotation_point)
+                                plt.plot(*tempplot.exterior.xy,'b')
+
                     else:
                         if not strip.getIntersectionPoly().is_empty:
-                            plt.plot(*strip.getIntersectionPoly().exterior.xy,'b')
-
+                            if self.rotation_point == None:
+                                plt.plot(*strip.getIntersectionPoly().exterior.xy,'b')
+                            else:
+                                tempplot = affinity.rotate(strip.getIntersectionPoly(), -self.rotation, origin=self.rotation_point)
+                                plt.plot(*tempplot.exterior.xy,'b')
+                            
                 #plot rows          
                 if plot_sf_rows:     
                     for element in strip.getDataArray():
                         #todo check if row
-                        plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.9)
-
+                        if self.rotation_point == None:
+                            plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.9)
+                        else:
+                            tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                            plt.plot(*tempplot.exterior.xy,'r',alpha=0.9)
+                       
+                        
+                        
         #plot boundary
-        plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
-        plt.plot(*self.pre_setback_polygon.exterior.xy,'k',linestyle='dashed')
+        if self.rotation_point == None:
+            plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
+            plt.plot(*self.pre_setback_polygon.exterior.xy,'k',linestyle='dashed')
+        else:
+            tempplot1 = affinity.rotate(self.polygon, -self.rotation, origin=self.rotation_point)
+            plt.plot(*tempplot1.exterior.xy,'k',linestyle='dashed')
+            tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
+            plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
+     
         plt.show()
         plt.clf()
         plt.cla()
@@ -238,3 +266,10 @@ class Farm:
     def printModuleNumber(self):
         print("-Number of modules = " + str(self.getModuleNumber()))
             
+    def setAzimuth(self, angle):
+        self.rotation_point = self.polygon.centroid
+        self.polygon = affinity.rotate(self.polygon, angle, origin=self.rotation_point)
+        self.rotation = angle
+    
+    def moveCentroidToOrigin(self):
+        self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.centroid.xy[0][0], yoff=-self.polygon.centroid.xy[1][0])
