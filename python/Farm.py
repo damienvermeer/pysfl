@@ -17,7 +17,7 @@ class Farm:
 
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
-        
+
     def translateFarmBoundaryToOrigin(self):
         self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.bounds[0], yoff=-self.polygon.bounds[1])
 
@@ -40,7 +40,7 @@ class Farm:
     def createStrips(self):
 
         #create strips as an array of StripPolys
-        print("--stip generator starting") if c.VERBOSE == True else False
+        print("--|strip generator starting") if c.VERBOSE == True else False
 
         #calc polygon data
         poly_width = self.polygon.bounds[2] - self.polygon.bounds[0]
@@ -48,14 +48,17 @@ class Farm:
 
         #calc number of strips to make
         num_strips = int((poly_width + c.SR_POST_POST_WIDTH)/c.SR_POST_POST_WIDTH)
-        print("--|# Strips = " + str(num_strips)) if c.VERBOSE == True else False
+        print("--|# strips = " + str(num_strips+1)) if c.VERBOSE == True else False
 
         #iterate over strips creating each of them
         print("--|creating strips") if c.VERBOSE == True else False 
-        for snum in np.arange(self.polygon.bounds[0],poly_width+c.SR_POST_POST_WIDTH,c.SR_POST_POST_WIDTH):
+        for snum in np.arange(self.polygon.bounds[0], self.polygon.bounds[2]+c.SR_POST_POST_WIDTH, c.SR_POST_POST_WIDTH):
+        #for snum in np.arange(self.polygon.bounds[0],poly_width+c.SR_POST_POST_WIDTH,c.SR_POST_POST_WIDTH):
 
             #create strip
-            new_strip = StripPoly.StripPoly(snum, self.polygon.bounds[0], poly_height, self.polygon, self)
+            #new_strip = StripPoly.StripPoly(snum, self.polygon.bounds[0], poly_height, self.polygon, self)
+            new_strip = StripPoly.StripPoly(snum, self.polygon.bounds[1], poly_height, c.SR_POST_POST_WIDTH, self.polygon, self)
+            
             self.strips.append(new_strip)
 
             #set left neighbour
@@ -122,7 +125,7 @@ class Farm:
     def populateSolarRowSmartAlign(self, strip, intersect_poly):
             
         #determine which edge of the intersect poly has the shallowest slope
-        
+
         #first get centroid of intersect_poly
         centroidy = intersect_poly.centroid.xy[1][0]
         print("---/Centroid is = "+str(centroidy)) if c.DEBUG == True else False
@@ -165,8 +168,8 @@ class Farm:
 
 
     def populateAllSolarRows(self):
-        print("--|starting to populate solar rows") if c.VERBOSE == True else False 
-        
+        print("--|solar row layout generator starting") if c.VERBOSE == True else False
+
         #check we have some strips to work on
         if len(self.strips) < 1:
             raise ValueError("!!! Fatal error - Cannot populate solar rows with no strips")
@@ -273,3 +276,6 @@ class Farm:
     
     def moveCentroidToOrigin(self):
         self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.centroid.xy[0][0], yoff=-self.polygon.centroid.xy[1][0])
+
+    def getMBBRatio(self):
+        return self.polygon.area / self.polygon.minimum_rotated_rectangle.area

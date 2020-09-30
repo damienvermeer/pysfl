@@ -14,23 +14,26 @@ sf = shapefile.Reader(r"C:\Users\Damien\Desktop\SDM773066\solar\parcel_mp.dbf")
 #load the first shape
 farm = None
 for shape in sf.iterShapes():
-    
+
     print("---------------------------")
     print("Solar Farm Layout Tool V0.1")
     print("---------------------------")
 
     #create Farm:
-    print("-creating farm boundary") if c.VERBOSE == True else False
+    print("--|creating farm boundary") if c.VERBOSE == True else False
     farm = Farm.Farm(shape.points)  #create farm
+    print("--|scaling farm boundary") if c.VERBOSE == True else False
     farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
-    
-    if farm.getArea() > 100000:
-        farm.moveCentroidToOrigin()
-        farm.setAzimuth(58)
+    farm.moveCentroidToOrigin() #set before choose azimuth
+    farm.setAzimuth(45)
+    print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
+
+    if farm.getMBBRatio() < 0.4 and farm.getArea() > 1000000:
+        print("--|creating setback") if c.VERBOSE == True else False        
         farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
         farm.createStrips()
         farm.populateAllSolarRows()
-        farm.plotFarm()
+        farm.plotFarm(plot_strips=False)
 
 
 

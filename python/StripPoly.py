@@ -6,9 +6,10 @@ class StripPoly:
 
 
 
-    def __init__(self, x_corner, y_offset, height, intersect_poly, farm):
+    def __init__(self, x_min, y_min, height, width, intersect_poly, farm):
         #create polygon strip
-        self.polygon = Polygon([Point(x_corner, -height),Point(x_corner, height+y_offset),Point(x_corner+c.SR_POST_POST_WIDTH, height+y_offset), Point(x_corner+c.SR_POST_POST_WIDTH, -height)])
+        self.polygon = box(x_min, y_min, x_min+width, y_min+height)
+        #self.polygon = Polygon([Point(x_corner, intersect_poly.bounds[1]),Point(x_corner, height+y_offset),Point(x_corner+c.SR_POST_POST_WIDTH, height+y_offset), Point(x_corner+c.SR_POST_POST_WIDTH, intersect_poly.bounds[1])])
         self.intersection = None
         self.farm = farm
         self.left_strip = None
