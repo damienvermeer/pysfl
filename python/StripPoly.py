@@ -1,10 +1,11 @@
 from shapely.geometry import *
 from shapely import affinity
 import Constants as c
+from Enums import POITypes as e_p
+from Enums import SPDataTypes as e_d
+import operator
 
 class StripPoly:
-
-
 
     def __init__(self, x_min, y_min, height, width, intersect_poly, farm):
         #create polygon strip
@@ -52,3 +53,11 @@ class StripPoly:
 
     def getDataArray(self):
         return self.data
+
+    def addToDataArray(self, element):
+        self.data.append(element)
+
+    def sortDataArray(self, sortby='ycoord', direction='small_to_big'):
+        if sortby == 'ycoord':
+            if direction == 'small_to_big':
+                self.data.sort(key=operator.attrgetter('y_coord'))

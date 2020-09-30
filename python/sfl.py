@@ -25,14 +25,15 @@ for shape in sf.iterShapes():
     print("--|scaling farm boundary") if c.VERBOSE == True else False
     farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
     farm.moveCentroidToOrigin() #set before choose azimuth
-    farm.setAzimuth(45)
+    farm.setAzimuth(0)
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
-    if farm.getMBBRatio() < 0.4 and farm.getArea() > 1000000:
+    if farm.getArea() > 1000000:
         print("--|creating setback") if c.VERBOSE == True else False        
         farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
         farm.createStrips()
         farm.populateAllSolarRows()
+        farm.addRoads()
         farm.plotFarm(plot_strips=False)
 
 

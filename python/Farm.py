@@ -4,7 +4,10 @@ import Constants as c
 import matplotlib.pyplot as plt
 import StripPoly
 import SolarRow
+import POI
 import numpy as np
+from Enums import POITypes as e_p
+from Enums import SPDataTypes as e_d
 
 class Farm:
 
@@ -107,8 +110,20 @@ class Farm:
                     else:
                         new_solar_row = SolarRow.SolarRow(point[0], point[1]+yoffset, c.SR_POST_POST_WIDTH, rowtest, c.SR_NUM_MODULES_PER_ROW[count], self, align='top')
 
-                    #test if fits
+                    #test if valid
+                    valid_row = True
+
                     if not intersect_poly.contains(new_solar_row.getPoly()):
+                        valid_row = False
+
+                    #test if intersect with any other rows in strip
+                    for element in strip.getDataArray():
+                        if element.getDataType() == e_d.SOLAR_ROW:
+                            if new_solar_row.getPoly().intersects(element.getPoly()):
+                                print("---/Debug/Solar row intersected with another row ") if c.DEBUG == True else False
+                                valid_row = False
+
+                    if not valid_row:
                         break
 
                     #fits if get here
@@ -117,7 +132,7 @@ class Farm:
                         if align == 'bottom':
                             yoffset += rowtest + c.SR_END_END_WIDTH
                         else:
-                            yoffset -= rowtest - c.SR_END_END_WIDTH
+                            yoffset -= rowtest + c.SR_END_END_WIDTH
 
 
 
@@ -162,7 +177,7 @@ class Farm:
             self.populateSolarRow(strip, intersect_poly, align='top')
             print("---/SmartAlign selected top align") if c.DEBUG == True else False
         else:
-            self.populateSolarRow(strip, intersect_poly, align='bottom') 
+            self.populateSolarRow(strip, intersect_poly, align='bottom')
             print("---/SmartAlign selected bottoms align") if c.DEBUG == True else False   
 
 
@@ -189,6 +204,9 @@ class Farm:
                         self.populateSolarRowSmartAlign(strip, geom)
                 else:
                     self.populateSolarRowSmartAlign(strip, strip.getIntersectionPoly())
+
+                #then sort by y_coord
+                #strip.sortDataArray()
                  
 
     def plotFarm(self, plot_strips=False, plot_strip_ints=True, to_image=False, plot_sf_rows=True):
@@ -228,15 +246,25 @@ class Farm:
                                 tempplot = affinity.rotate(strip.getIntersectionPoly(), -self.rotation, origin=self.rotation_point)
                                 plt.plot(*tempplot.exterior.xy,'b')
                             
-                #plot rows          
+                #plot datapoints          
                 if plot_sf_rows:     
                     for element in strip.getDataArray():
-                        #todo check if row
-                        if self.rotation_point == None:
-                            plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.9)
-                        else:
-                            tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
-                            plt.plot(*tempplot.exterior.xy,'r',alpha=0.9)
+
+                        #plot solar rows
+                        if element.getDataType() == e_d.SOLAR_ROW:
+                            if self.rotation_point == None:
+                                plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.9)
+                            else:
+                                tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                                plt.plot(*tempplot.exterior.xy,'r',alpha=0.9)
+                        
+                        #plot road nodes
+                        elif element.getDataType() == e_p.ROAD_NODE:
+                            if self.rotation_point == None:
+                                plt.scatter(element.getCoords()[0],element.getCoords()[1],c='y',alpha=0.9)
+                            else:
+                                tempplot = affinity.rotate(element.getCoordsAsPoint(), -self.rotation, origin=self.rotation_point)
+                                plt.scatter(*tempplot.xy,c='y',alpha=0.9)
                        
                         
                         
@@ -249,7 +277,8 @@ class Farm:
             plt.plot(*tempplot1.exterior.xy,'k',linestyle='dashed')
             tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
             plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
-     
+        
+        plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
         plt.clf()
         plt.cla()
@@ -270,12 +299,35 @@ class Farm:
         print("-Number of modules = " + str(self.getModuleNumber()))
             
     def setAzimuth(self, angle):
-        self.rotation_point = self.polygon.centroid
-        self.polygon = affinity.rotate(self.polygon, angle, origin=self.rotation_point)
-        self.rotation = angle
+        if not angle == 0:
+            self.rotation_point = self.polygon.centroid
+            self.polygon = affinity.rotate(self.polygon, angle, origin=self.rotation_point)
+            self.rotation = angle
     
     def moveCentroidToOrigin(self):
         self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.centroid.xy[0][0], yoff=-self.polygon.centroid.xy[1][0])
 
     def getMBBRatio(self):
         return self.polygon.area / self.polygon.minimum_rotated_rectangle.area
+
+    def addRoads(self, method='numlongrows', parameter=2):
+        print("--|addding road markers") if c.VERBOSE == True else False
+
+        if method == 'numlongrows':
+            #add a POI road marker every 2nd long row
+            for strip in self.strips:
+                counter = 0
+                for element in strip.getDataArray():
+                    if element.getDataType() == e_d.SOLAR_ROW:
+                        #this is a solar row
+                        if element.getNumberModules() == max(c.SR_NUM_MODULES_PER_ROW):
+                            #this is a (max) long row
+                            counter += 1
+                            if counter == parameter:
+                                #this is the 'parameterth' long row adjacent, add a road calc node
+                                counter = 0
+                                coords =[0,0]
+                                coords = [element.getXMidpoint(),element.getYTop()+c.SR_END_END_WIDTH/2]
+                                strip.addToDataArray(POI.POI(coords))
+                        else:
+                            counter = 0
