@@ -59,7 +59,6 @@ class Farm:
         #for snum in np.arange(self.polygon.bounds[0],poly_width+c.SR_POST_POST_WIDTH,c.SR_POST_POST_WIDTH):
 
             #create strip
-            #new_strip = StripPoly.StripPoly(snum, self.polygon.bounds[0], poly_height, self.polygon, self)
             new_strip = StripPoly.StripPoly(snum, self.polygon.bounds[1], poly_height, c.SR_POST_POST_WIDTH, self.polygon, self)
             
             self.strips.append(new_strip)
@@ -73,8 +72,11 @@ class Farm:
         for i,e in enumerate(self.strips[:-1]):
             e.setRightNeighbour(self.strips[i+1])
 
-    def populateSolarRow(self, strip, intersect_poly,align='bottom'):
+    def populateSolarRow(self, strip, intersect_poly, align='bottom'):
         
+        #set anchor property in strip
+        strip.anchor = align
+
         #process one solar row
         xypoints_to_test = []
         for point in intersect_poly.exterior.coords:
@@ -128,7 +130,7 @@ class Farm:
 
                     #fits if get here
                     if new_solar_row not in strip.data:
-                        strip.data.append(new_solar_row)
+                        strip.addToDataArray(new_solar_row)
                         if align == 'bottom':
                             yoffset += rowtest + c.SR_END_END_WIDTH
                         else:
@@ -311,13 +313,21 @@ class Farm:
         return self.polygon.area / self.polygon.minimum_rotated_rectangle.area
 
     def addRoads(self, method='numlongrows', parameter=2):
+        
+        #step 1 - process and add road POI markers
+        
         print("--|addding road markers") if c.VERBOSE == True else False
 
         if method == 'numlongrows':
             #add a POI road marker every 2nd long row
             for strip in self.strips:
                 counter = 0
-                for element in strip.getDataArray():
+                if strip.anchor == 'bottom':
+                    dataarray = strip.getDataArray()
+                else:
+                    dataarray = strip.getDataArray()[::-1]
+
+                for element in dataarray:
                     if element.getDataType() == e_d.SOLAR_ROW:
                         #this is a solar row
                         if element.getNumberModules() == max(c.SR_NUM_MODULES_PER_ROW):
@@ -326,8 +336,47 @@ class Farm:
                             if counter == parameter:
                                 #this is the 'parameterth' long row adjacent, add a road calc node
                                 counter = 0
-                                coords =[0,0]
-                                coords = [element.getXMidpoint(),element.getYTop()+c.SR_END_END_WIDTH/2]
+                                if strip.anchor == 'bottom':
+                                    coords = [element.getXMidpoint(),element.getYTop()+0.001]
+                                else:
+                                    coords = [element.getXMidpoint(),element.getYBottom()-0.001]
                                 strip.addToDataArray(POI.POI(coords))
                         else:
                             counter = 0
+        elif method == 'minspace':
+            raise ValueError("minspace road placement not yet implemented")
+        else:
+            raise ValueError("addRoads not given valid method")
+
+        #step 2 - check there are no POI  road nodes on the end of the stip list
+        for strip in self.strips:
+            dataarray = strip.getDataArray()
+
+            if len(dataarray) == 0:
+                continue
+            
+            if dataarray[-1].getDataType() == e_p.ROAD_NODE:
+                strip.removeFromDataArray(dataarray[-1])
+                print("---/Debug/Removed ROAD_NODE POI from end") if c.DEBUG == True else False
+
+            if dataarray[0].getDataType() == e_p.ROAD_NODE:
+                strip.removeFromDataArray(dataarray[0])
+                print("---/Debug/Removed ROAD_NODE POI from start") if c.DEBUG == True else False
+                                                        
+        #once we get to here, we have road markers everywhere
+        #step 3 - process road markers and shift rows up/down
+        yshiftcoord = 0
+        for strip in self.strips:
+            for poly in strip.getIntersectionPoly(type='list'): #handles multipolyon
+                for element in strip.getDataArray():
+                    if element.getDataType() == e_p.ROAD_NODE:
+                        if not element.getProcessedFlag():
+                            #this is a road node, get its y value
+                            yshiftcoord = element.getCoords()[1] #get y value of POI
+                            element.setAsProcessed()    #to prevent double up
+
+                            #tell the strip to shift everything up
+                            strip.processRoadShift(poly, yshiftcoord, strip.anchor, c.SR_ROADWAY_WIDTH)
+                            
+            
+        

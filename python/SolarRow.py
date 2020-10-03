@@ -10,12 +10,14 @@ class SolarRow:
         #create polygon strip
         if align == 'bottom':
             self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner+row_height), Point(x_corner, y_corner+row_height)])
+            self.y_coord = y_corner
         else:
             self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner-row_height), Point(x_corner, y_corner-row_height)])
+            self.y_coord = y_corner-row_height
         self.num_modules = num_modules
         self.strip = strip
         self.datatype = e_d.SOLAR_ROW
-        self.y_coord = y_corner
+        
 
     def getPoly(self):
         return self.polygon
@@ -34,3 +36,43 @@ class SolarRow:
 
     def getYTop(self):
         return self.polygon.bounds[3]
+
+    def getYBottom(self):
+        return self.polygon.bounds[1]
+
+    def shift(self, x, y):
+        self.polygon = affinity.translate(self.polygon, xoff=x, yoff=y)
+        self.y_coord = self.polygon.bounds[1]
+
+    def reduceRowSize(self, anchor):
+        #get number of modules
+        i = c.SR_NUM_MODULES_PER_ROW.index(self.num_modules)
+
+        if i == len(c.SR_ROW_LENGTHS)-1:  #cant make it any smaller
+            return False
+        else:
+            if(anchor == 'bottom'):
+                self.num_modules = c.SR_NUM_MODULES_PER_ROW[i+1]
+                x_min = self.polygon.bounds[0]
+                y_min = self.polygon.bounds[1]
+                width = self.polygon.bounds[2] - self.polygon.bounds[0]
+                height = c.SR_ROW_LENGTHS[i+1]
+
+                #set polygon
+                self.polygon = box(x_min, y_min, x_min+width, y_min+height)
+                return True
+            else:   #if anchor is top
+                self.num_modules = c.SR_NUM_MODULES_PER_ROW[i+1]
+                x_min = self.polygon.bounds[0]
+                y_max = self.polygon.bounds[3]
+                width = c.SR_POST_POST_WIDTH
+                height = c.SR_ROW_LENGTHS[i+1]
+
+                #set polygon
+                self.polygon = box(x_min, y_max, x_min+width, y_max-height)
+                return True
+
+
+
+        
+        
