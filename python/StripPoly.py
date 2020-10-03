@@ -94,22 +94,6 @@ class StripPoly:
                     #this is completely below the point so move it down
                     element.shift(0, -shiftin)
 
-                    #then needs to look at the y delta between this row and 
-                    #the one to its right
-                    #rneighbour = None
-                    #for relement in self.right_strip.getDataArray():
-                    #    if relement.getYTop() >= element.getYTop() and relement.getYBottom() <= element.getYTop():
-                    #        #this is our right neighbour strip
-                    #        rneighbour = relement
-                    #        break
-
-                    #if not rneighbour == None:
-                    #    shift_distance = rneighbour.getYTop() - element.getYTop()
-                    #    element.shift(0, -shift_distance)
-                    # ^^^ MOVE ALL SO ONLY THE ROADWAY IS AFFECTED
-
-
-
         #then process for intersections with the boundary
         for element in self.data:
             if element.getDataType() == e_d.SOLAR_ROW:
@@ -117,12 +101,6 @@ class StripPoly:
                 #check if it is still valid
                 #dont need to check for self intersections as already done
                 while not strip_intersect_poly_in.contains(element.getPoly()):
-                    #print(strip_intersect_poly_in.contains(element.getPoly()))
-                    #plt.plot(*strip_intersect_poly_in.exterior.xy)
-                    #plt.plot(*element.getPoly().exterior.xy)
-                    #plt.gca().set_aspect('equal', adjustable='box')
-                    #plt.show()
-                    #not valid, try smaller row
                     success = element.reduceRowSize(anchor)
 
                     if not success:

@@ -9,3 +9,8 @@ class POITypes(Enum):
 class SPDataTypes(Enum):
     SOLAR_ROW = 0
     ROAD_NODE = 1
+
+class MultiPointDataTypes(Enum):
+    RADIAL_ROAD = 0
+    RING_ROAD = 1
+    #todo implement more

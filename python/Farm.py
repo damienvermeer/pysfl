@@ -8,6 +8,8 @@ import POI
 import numpy as np
 from Enums import POITypes as e_p
 from Enums import SPDataTypes as e_d
+import Enums as e 
+import MultiPointHandler
 
 class Farm:
 
@@ -17,6 +19,7 @@ class Farm:
         self.strips = []
         self.rotation_point = None
         self.rotation = 0
+        self.mphs = []
 
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
@@ -33,6 +36,21 @@ class Farm:
     def setbackFarmBoundary(self, setback):
         self.pre_setback_polygon = self.polygon #back this up
         self.polygon = self.polygon.buffer(-setback)
+        self.processRoadOnBoundary(setback)
+
+    def processRoadOnBoundary(self, setback):
+        ls_boundary = self.polygon.boundary.parallel_offset(setback/2, 'left')
+
+        #travel along boundary interpolating
+        road_points = []
+        for f in range(0, int(np.ceil(ls_boundary.length)) + 1):
+            road_points.append(ls_boundary.interpolate(f).coords[0])
+        road_points.append(road_points[0])
+
+        #create road handler
+        new_mph = MultiPointHandler.MultiPointHandler(road_points, type_in=e.MultiPointDataTypes.RING_ROAD)
+        new_mph.updatePoly()
+        self.mphs.append(new_mph)
 
     def getBoundaryPoly(self):
         return self.polygon
@@ -176,7 +194,7 @@ class Farm:
 
         if delta_y_bottom >= delta_y_top:
             #this means bigger slope on the bottom then the top
-            self.populateSolarRow(strip, intersect_poly, align='top')
+            self.populateSolarRow(strip, intersect_poly, align='bottom') #debug should be top
             print("---/SmartAlign selected top align") if c.DEBUG == True else False
         else:
             self.populateSolarRow(strip, intersect_poly, align='bottom')
@@ -267,8 +285,11 @@ class Farm:
                             else:
                                 tempplot = affinity.rotate(element.getCoordsAsPoint(), -self.rotation, origin=self.rotation_point)
                                 plt.scatter(*tempplot.xy,c='y',alpha=0.9)
-                       
-                        
+        
+        for mph in self.mphs:
+            plt.plot(*mph.getPolygon().exterior.xy,'y',linestyle='dashed')
+            for interior in mph.getPolygon().interiors:
+                plt.plot(*interior.xy,'y',linestyle='dashed')
                         
         #plot boundary
         if self.rotation_point == None:
@@ -349,6 +370,7 @@ class Farm:
             raise ValueError("addRoads not given valid method")
 
         #step 2 - check there are no POI  road nodes on the end of the stip list
+        print("--|cleaning up excess road markers") if c.VERBOSE == True else False
         for strip in self.strips:
             dataarray = strip.getDataArray()
 
@@ -364,8 +386,8 @@ class Farm:
                 print("---/Debug/Removed ROAD_NODE POI from start") if c.DEBUG == True else False
                                                         
         #once we get to here, we have road markers everywhere
-        #step 3 - process road markers and shift rows up/down
-        yshiftcoord = 0
+        #step 3 - get road poi nodes within some delta (NEW_ROAD_DELTA)
+        print("--|processing roads") if c.VERBOSE == True else False
         for strip in self.strips:
             for poly in strip.getIntersectionPoly(type='list'): #handles multipolyon
                 for element in strip.getDataArray():
@@ -374,9 +396,18 @@ class Farm:
                             #this is a road node, get its y value
                             yshiftcoord = element.getCoords()[1] #get y value of POI
                             element.setAsProcessed()    #to prevent double up
-
-                            #tell the strip to shift everything up
-                            strip.processRoadShift(poly, yshiftcoord, strip.anchor, c.SR_ROADWAY_WIDTH)
-                            
-            
+                            #self.road_polys.append(element.getCoords())
         
+        
+            
+
+
+
+
+
+
+
+
+
+
+
