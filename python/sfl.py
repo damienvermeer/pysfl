@@ -13,7 +13,12 @@ sf = shapefile.Reader(r"C:\Users\Damien\Desktop\SDM773066\solar\parcel_mp.dbf")
 
 #load the first shape
 farm = None
+count = 0
 for shape in sf.iterShapes():
+
+    count += 1
+    if count < 1000:  #skip to ID
+        continue
 
     print("---------------------------")
     print("Solar Farm Layout Tool V0.1")
@@ -28,9 +33,10 @@ for shape in sf.iterShapes():
     farm.setAzimuth(0)
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
-    if farm.getArea() > 100000:
+    if farm.getArea() > 70000:
         print("--|creating setback") if c.VERBOSE == True else False        
-        farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
+        if not farm.setbackFarmBoundary(c.SF_SETBACK):
+            continue  #setback from edge, handle multistring
         farm.createStrips()
         farm.populateAllSolarRows()
         farm.addRoads()

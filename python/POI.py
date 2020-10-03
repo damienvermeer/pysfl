@@ -11,6 +11,7 @@ class POI:
         self.datatype = type_in
         self.y_coord = coords[1]
         self.processed_flag = False
+        self.handler = None
 
     def getDataType(self):
         return self.datatype
@@ -26,6 +27,9 @@ class POI:
         self.coords[1] += y
         self.y_coord = self.coords[1]
 
+    def getX(self):
+        return self.coords[0]
+
     def getYTop(self):
         return self.coords[1]
 
@@ -40,3 +44,6 @@ class POI:
 
     def reduceRowSize(self, loc='bottom'):
         return False
+
+    def addHandler(self, handler):
+        self.handler = handler

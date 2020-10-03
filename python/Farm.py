@@ -36,7 +36,11 @@ class Farm:
     def setbackFarmBoundary(self, setback):
         self.pre_setback_polygon = self.polygon #back this up
         self.polygon = self.polygon.buffer(-setback)
-        self.processRoadOnBoundary(setback)
+        if self.polygon.boundary.geom_type == 'MultiLineString':
+            return False
+        else:
+            self.processRoadOnBoundary(setback)
+            return True
 
     def processRoadOnBoundary(self, setback):
         ls_boundary = self.polygon.boundary.parallel_offset(setback/2, 'left')
@@ -48,7 +52,8 @@ class Farm:
         road_points.append(road_points[0])
 
         #create road handler
-        new_mph = MultiPointHandler.MultiPointHandler(road_points, type_in=e.MultiPointDataTypes.RING_ROAD)
+        new_mph = MultiPointHandler.MultiPointHandler(type_in=e.MultiPointDataTypes.RING_ROAD)
+        new_mph.setCoords(road_points)
         new_mph.updatePoly()
         self.mphs.append(new_mph)
 
@@ -390,23 +395,63 @@ class Farm:
         print("--|processing roads") if c.VERBOSE == True else False
         for strip in self.strips:
             for poly in strip.getIntersectionPoly(type='list'): #handles multipolyon
-                for element in strip.getDataArray():
-                    if element.getDataType() == e_p.ROAD_NODE:
-                        if not element.getProcessedFlag():
-                            #this is a road node, get its y value
-                            yshiftcoord = element.getCoords()[1] #get y value of POI
-                            element.setAsProcessed()    #to prevent double up
-                            #self.road_polys.append(element.getCoords())
-        
-        
+                for rp in strip.getDataArray():
+                    if rp.getDataType() == e_p.ROAD_NODE:
+                        if rp.handler == None:
+                            #create new road - defaults to radial road
+                            new_mph = MultiPointHandler.MultiPointHandler()
+                            new_mph.addCoord([rp.getX(),rp.getYTop()])
+                            rp.handler = new_mph
+                            self.mphs.append(new_mph)
+                        
+                        mindist = 999
+                        mindistrp = None
+
+                        for i, test_rp in enumerate(strip.getRightNeighbour().getDataArray()):
+                            if test_rp.getDataType() == e_p.ROAD_NODE:
+                                #calculate distance from the current point
+                                dist = np.sqrt(np.power(test_rp.getX() - rp.getX(),2)+np.power(test_rp.getYTop() - rp.getYTop(),2))
+
+                                #calculate acceptable offset
+                                nmod = strip.getRightNeighbour().getDataArray()[i-1].getNumberModules()
+                                prlength = c.ROAD_Y_DELTA*c.SR_ROW_LENGTHS[c.SR_NUM_MODULES_PER_ROW.index(nmod)]
+                                compdist = np.sqrt(np.power(c.SR_POST_POST_WIDTH,2)+np.power(prlength,2))
+
+                                #find min distance rp
+                                if dist <= compdist:
+                                    if dist < mindist:
+                                        mindist = dist
+                                        mindistrp = test_rp
+                                        print("---/Debug/New min distance")# if c.DEBUG == True else False
+                                    else:
+                                        print("---/Debug/not smaller than mindist")# if c.DEBUG == True else False
+
+                        #use the min distance rp
+                        #this is a valid road point which we can
+                        #build a road with rp
+                        if not mindistrp == None:
+                            rp.handler.addCoord([mindistrp.getX(), mindistrp.getYTop()])
+                            mindistrp.handler = rp.handler
+
+                        print("--")
+
+        remove_list = []
+        for i in self.mphs:
+            if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
+                print(i.coords_array)
+                print(i.getNumCoords())
+                if i.getNumCoords() >= 2:
+                    i.updatePoly()
+                else:
+                    remove_list.append(i)
+
+        for delete in remove_list:
+            self.mphs.remove(delete)
+
+                        
+
+
             
-
-
-
-
-
-
-
 
 
 
