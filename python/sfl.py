@@ -29,10 +29,10 @@ for shape in sf.iterShapes():
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
     if farm.getArea() > 100000:
-        print("--|creating setback") if c.VERBOSE == True else False        
-        farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
-        farm.createStrips()
-        farm.populateAllSolarRows()
+    print("--|creating setback") if c.VERBOSE == True else False        
+    farm.setbackFarmBoundary(c.SF_SETBACK)  #setback from edge
+    farm.createStrips()
+    farm.populateAllSolarRows()
         farm.addRoads()
         farm.plotFarm(plot_strips=False)
 
