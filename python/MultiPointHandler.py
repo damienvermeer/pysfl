@@ -22,19 +22,24 @@ class MultiPointHandler:
         return self.poly
 
     def shift(self, x, y):
-        self.poly = affinity.translate(self.polygon, xoff=x, yoff=y)
+        self.poly = affinity.translate(self.poly, xoff=x, yoff=y)
 
     def getYTop(self):
-        return self.polygon.bounds[3]
+        return self.poly.bounds[3]
 
     def getYBottom(self):
-        return self.polygon.bounds[1]
+        return self.poly.bounds[1]
 
     def getNumCoords(self):
         return len(self.coords_array)
 
-    def addCoord(self, coord):
-        self.coords_array.append(coord)  #coord is a 2-array [x,x]
+    def addCoord(self, coord, loc='end'):
+        if (loc == 'end'):
+            self.coords_array.append(coord)  #coord is a 2-array [x,x]
+        elif (loc == 'start'):
+            self.coords_array.insert(0, coord)
+        else:
+            raise ValueError("addCoord passed invalid location")
         #TODO fix this and setCoords seems to use different data structures?
 
     def setCoords(self, coords):
@@ -83,6 +88,24 @@ class MultiPointHandler:
 
         return max_slope
         
+
+    def extrapolate(self, i1, i2, xresolve):
+        if i1 > len(self.coords_array) or i2 > len(self.coords_array):
+            return None #handle out of index errors
+        else:
+            #valid indexes
+            x1 = self.coords_array[i1][0]
+            y1 = self.coords_array[i1][1]
+            x2 = self.coords_array[i2][0]
+            y2 = self.coords_array[i2][1]
+            xdata = np.array([x1, x2])
+            ydata = np.array([y1, y2])
+
+            params = np.polyfit(xdata, ydata, 1) #linear fit
+
+            return np.polyval(params, xresolve) #return extrapolate
+
+
 
                                             
 
