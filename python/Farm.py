@@ -327,8 +327,8 @@ class Farm:
         num_modules = 0
         for strip in self.strips:
             for element in strip.data:
-                #todo check is solar row
-                num_modules += element.getNumberModules()
+                if element.getDataType() == e.SPDataTypes.SOLAR_ROW:
+                    num_modules += element.getNumberModules()
 
         return num_modules
 
