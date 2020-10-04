@@ -17,7 +17,7 @@ count = 0
 for shape in sf.iterShapes():
 
     count += 1
-    if count < 1000:  #skip to ID
+    if count < 250:  #skip to ID
         continue
 
     print("---------------------------")
@@ -33,7 +33,7 @@ for shape in sf.iterShapes():
     farm.setAzimuth(0)
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
-    if farm.getArea() > 70000:
+    if farm.getMBBRatio() < 0.8:
         print("--|creating setback") if c.VERBOSE == True else False        
         if not farm.setbackFarmBoundary(c.SF_SETBACK):
             continue  #setback from edge, handle multistring

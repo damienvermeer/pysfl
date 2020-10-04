@@ -12,3 +12,4 @@ VERBOSE = True                              #print all output
 DEBUG = False                                #print lots of output
 ROAD_Y_DELTA = 1  #temp see if new line idea works
 SPIKE_MIN = 10
+MAX_ROAD_DELTA_ANGLE = 60

@@ -10,6 +10,7 @@ from Enums import POITypes as e_p
 from Enums import SPDataTypes as e_d
 import Enums as e 
 import MultiPointHandler
+import math
 
 class Farm:
 
@@ -410,21 +411,33 @@ class Farm:
                         for i, test_rp in enumerate(strip.getRightNeighbour().getDataArray()):
                             if test_rp.getDataType() == e_p.ROAD_NODE:
                                 #calculate distance from the current point
-                                dist = np.sqrt(np.power(test_rp.getX() - rp.getX(),2)+np.power(test_rp.getYTop() - rp.getYTop(),2))
+                                deltax = test_rp.getX() - rp.getX()
+                                deltay = test_rp.getYTop() - rp.getYTop()
+                                dist = np.sqrt(np.power(deltax,2)+np.power(deltay,2))
 
                                 #calculate acceptable offset
                                 nmod = strip.getRightNeighbour().getDataArray()[i-1].getNumberModules()
                                 prlength = c.ROAD_Y_DELTA*c.SR_ROW_LENGTHS[c.SR_NUM_MODULES_PER_ROW.index(nmod)]
                                 compdist = np.sqrt(np.power(c.SR_POST_POST_WIDTH,2)+np.power(prlength,2))
 
+                                #TODO check for minimum angle
+                                curr_angle = math.degrees(math.atan2(deltay,deltax))
+                                if len(rp.handler.coords_array) > 1:
+                                    prev_angle = math.degrees(math.atan2(rp.getYTop()-rp.handler.coords_array[-2][1], rp.getX()-rp.handler.coords_array[-2][0]))
+                                else:
+                                    prev_angle = curr_angle  
+                                
+                                print("prev_angle = " + str(prev_angle) + "|curr_angle = "+ str(curr_angle))
+
                                 #find min distance rp
                                 if dist <= compdist:
-                                    if dist < mindist:
-                                        mindist = dist
-                                        mindistrp = test_rp
-                                        print("---/Debug/New min distance")# if c.DEBUG == True else False
-                                    else:
-                                        print("---/Debug/not smaller than mindist")# if c.DEBUG == True else False
+                                    if np.abs(prev_angle-curr_angle) < c.MAX_ROAD_DELTA_ANGLE:
+                                        if dist < mindist:
+                                            mindist = dist
+                                            mindistrp = test_rp
+                                            print("---/Debug/New min distance")# if c.DEBUG == True else False
+                                        else:
+                                            print("---/Debug/not smaller than mindist")# if c.DEBUG == True else False
 
                         #use the min distance rp
                         #this is a valid road point which we can
@@ -435,13 +448,16 @@ class Farm:
 
                         print("--")
 
+        #remove empty mphs
         remove_list = []
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
-                print(i.coords_array)
-                print(i.getNumCoords())
                 if i.getNumCoords() >= 2:
-                    i.updatePoly()
+                    i.removeSpikes()    #else will fail slope test normally 
+                    if not i.getMaxSlope() > c.MAX_ROAD_DELTA_ANGLE:
+                        i.updatePoly()
+                    else:
+                        remove_list.append(i)
                 else:
                     remove_list.append(i)
 
