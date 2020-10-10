@@ -17,7 +17,7 @@ count = 0
 for shape in sf.iterShapes():
 
     count += 1
-    if count < 10000:  #skip to ID
+    if count < 100:  #skip to ID
         continue
 
     print("---------------------------")
@@ -30,19 +30,19 @@ for shape in sf.iterShapes():
     print("--|scaling farm boundary") if c.VERBOSE == True else False
     farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
     farm.moveCentroidToOrigin() #set before choose azimuth
-    farm.setAzimuth(11)
+    farm.setAzimuth(0)
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
 
-    if farm.getArea() > 1000000 and farm.getMBBRatio() < 0.5:
-        print("--|creating setback") if c.VERBOSE == True else False        
-        if not farm.setbackFarmBoundary(c.SF_SETBACK):
-            continue  #setback from edge, handle multistring
-        farm.createStrips()
-        farm.populateAllSolarRows()
-        farm.addRoads()
-        print(farm.printModuleNumber())
-        farm.plotFarm(plot_strips=True)
+    # if farm.getArea() > 1000000 and farm.getMBBRatio() < 0.5:
+    print("--|creating setback") if c.VERBOSE == True else False        
+    if not farm.setbackFarmBoundary(c.SF_SETBACK):
+        continue  #setback from edge, handle multistring
+    farm.createStrips()
+    farm.populateAllSolarRows()
+    # farm.addRoads()
+    print(farm.printModuleNumber())
+    farm.plotFarm(plot_strips=True)
 
 
 

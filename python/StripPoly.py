@@ -9,25 +9,15 @@ import numpy as np
 
 class StripPoly:
 
-    def __init__(self, x_min, y_min, height, width, intersect_poly, farm):
+    def __init__(self, strip_poly, intersect_poly, farm):
         #create polygon strip
-        self.polygon = box(x_min, y_min, x_min+width, y_min+height)
-        self.intersection = None
+        self.polygon = strip_poly
+        self.intersection = intersect_poly
         self.farm = farm
         self.left_strip = None
         self.right_strip = None
         self.data = []
         self.anchor = "none"
-
-        #calculate intersection
-        try:
-            self.intersection = self.polygon.intersection(intersect_poly)
-            if self.intersection.is_empty:
-                print("---/No intersection in StripPoly") if c.DEBUG == True else False
-            else:
-                print("---/Found intersection: " + str(self.intersection)) if c.DEBUG == True else False
-        except:
-            print("---/Non-critical error during intersect in StripPoly") if c.DEBUG == True else False
 
     def setLeftNeighbour(self, strip_poly):
         self.left_strip = strip_poly
@@ -36,23 +26,16 @@ class StripPoly:
         self.right_strip = strip_poly       
 
     def getArea(self):
-        return self.polygon.area
+        return self.intersection.area
 
     def getPerimeter(self):
-        return self.polygon.perimeter
+        return self.intersection.perimeter
 
     def getStripPoly(self):
         return self.polygon
 
     def getIntersectionPoly(self, type=None):
-        if type == 'list':
-            if self.intersection.geom_type == 'MultiPolgyon':
-                return self.intersection
-            else:
-                return [self.intersection]
-
-        else:
-            return self.intersection
+        return self.intersection
 
     def getLeftNeighbour(self):
         return self.left_strip
@@ -78,10 +61,6 @@ class StripPoly:
         if sortby == 'ycoord':
             if direction == 'small_to_big':
                 self.data.sort(key=operator.attrgetter('y_coord'))
-
-        #for element in self.data:
-        #    print(str(element) + "|" + str(element.getYBottom()) + "|" + str(element.y_coord))
-        #print("--------")
 
     def processRoadShift(self, strip_intersect_poly_in, ycoord, anchor, shiftin):
         for element in self.data:
