@@ -191,8 +191,19 @@ class Farm:
                     for element in strip.getDataArray():
                         if element.getDataType() == e_d.SOLAR_ROW:
                             while not element.getPoly().intersection(self.mphs[-1].getPolygon()).is_empty:
+                                #remove everything with y above this element
+                                #this is because they arent being moved with this strip
+                                #so will cause duplicates
+                                for elm in strip.getDataArray():
+                                    if elm.getDataType() == e_d.SOLAR_ROW:
+                                        if elm.getYTop() > element.getYTop():
+                                            strip.removeFromDataArray(elm)
+                                
                                 if not element.reduceRowSize(strip.anchor):
+                                    #no smaller sizes so delete this element
                                     strip.removeFromDataArray(element)
+
+                                    #and finally break
                                     break
 
                 #then calculate strips again based on strips
@@ -201,6 +212,14 @@ class Farm:
                     if strip_intersection.is_empty:
                         continue
                     else:
+                        #remove everything with y above this element
+                        #this is because they arent being moved with this strip
+                        #so will cause duplicates
+                        for elm in strip.getDataArray():
+                            if elm.getDataType() == e_d.SOLAR_ROW:
+                                if elm.getYTop() > strip_intersection.bounds[3]:
+                                    strip.removeFromDataArray(elm)
+                        
                         strip.master_offset = strip_intersection.bounds[3]
                         strip.recalc = True
 
@@ -361,28 +380,24 @@ class Farm:
                 if plot_sf_rows:     
                     for element in strip.getDataArray():
 
-                        #plot solar rows
-                        # if element.getDataType() == e_d.SOLAR_ROW:
-                        #     if self.rotation_point == None:
-                        #         plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.2)
-                        #     else:
-                        #         tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
-                        #         plt.plot(*tempplot.exterior.xy,'r',alpha=0.2)
+                        # plot solar rows
+                        if element.getDataType() == e_d.SOLAR_ROW:
+                            if self.rotation_point == None:
+                                plt.plot(*element.getPoly().exterior.xy,'orange',alpha=0.75)
+                            else:
+                                tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                                plt.plot(*tempplot.exterior.xy,'orange',alpha=0.75)
                         
                         #DEBUG only plots duplicates
                         if element.getDataType() == e_d.SOLAR_ROW:
                             plot = False
+                            # for sp in self.strips:
                             for elm in strip.getDataArray():
                                     if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
                                         plot = not elm.getPoly().intersection(element.getPoly()).is_empty
-                            
                             if plot:
                                 plt.plot(*element.getPoly().exterior.xy,'r',alpha=1)
-                        #     if self.rotation_point == None:
-                        #         plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.2)
-                        #     else:
-                        #         tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
-                        #         plt.plot(*tempplot.exterior.xy,'r',alpha=0.2)
+
 
                         
                         #plot road nodes
