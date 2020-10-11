@@ -54,6 +54,10 @@ class MultiPointHandler:
         else:
             self.poly = LineString(self.coords_array).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
 
+    def sortByX(self):
+        self.coords_array.sort(key=lambda x: x[0])
+     
+
     def removeSpikes(self):
         #flag items for removal based on being too 'spiky'
         remove_list = []

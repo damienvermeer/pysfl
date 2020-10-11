@@ -21,6 +21,7 @@ class Farm:
         self.rotation_point = None
         self.rotation = 0
         self.mphs = []
+        self.next_road_id = 0
 
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
@@ -120,6 +121,16 @@ class Farm:
             e.setRightNeighbour(self.strips[i+1])
 
 
+                       
+
+
+
+
+
+
+
+
+
 
     def populateAllSolarRows(self):
         print("--|solar row layout generator starting") if c.VERBOSE == True else False
@@ -128,22 +139,82 @@ class Farm:
         if len(self.strips) < 1:
             raise ValueError("!!! Fatal error - Cannot populate solar rows with no strips")
         
-        #for each strip
-        for stripcount, strip in enumerate(self.strips):
 
-            print("--|processing strip " + str(stripcount+1) +"/"+str(len(self.strips))) if stripcount % 10 == 0 and c.VERBOSE == True else False 
+        firstpass = True
+        while True:
+            #enter repeat loop
 
-            #check if polygon area is less than smallest row area, continue
-            if c.SR_POST_POST_WIDTH*min(c.SR_ROW_LENGTHS) > strip.getIntersectionPoly().area:
-                continue #too small to fit anything in
+            #1 - loop over each strip to check if we need to draw_road
 
-            #get all y coords of intersect poly
-            self.placeSolarRow(strip)
+            #for each strip
+            draw_road = False
+            for stripcount, strip in enumerate(self.strips):
+
+                print("--|processing strip " + str(stripcount+1) +"/"+str(len(self.strips))) if stripcount % 10 == 0 and c.VERBOSE == True else False 
+
+                #check if polygon area is less than smallest row area, continue
+                if c.SR_POST_POST_WIDTH*min(c.SR_ROW_LENGTHS) > strip.getIntersectionPoly().area:
+                    continue #too small to fit anything in
+
+                #draw solar row, returns True if need to put a road node down
+                if strip.recalc or firstpass:
+                    strip.recalc = False
+                    if self.placeSolarRow(strip, self.next_road_id):
+                        draw_road = True
+                        
+            
+            firstpass = False
+            
+            if not draw_road:
+                break
+            else:
+                #need to process roads
+
+                #create new road
+                new_mph = MultiPointHandler.MultiPointHandler() #defaults to non-radial road
+                self.mphs.append(new_mph)
+                
+                #process roads from midpoint
+                left_strip_list = self.strips[len(self.strips)//2:] #middle to left
+                right_strip_list = self.strips[:len(self.strips)//2][::-1] #middle to right
+                self.processRoads(left_strip_list, self.next_road_id, new_mph)
+                self.processRoads(right_strip_list, self.next_road_id, new_mph)
+                self.next_road_id += 1
+
+                #create the road mph
+                new_mph.sortByX()
+                self.extrapolateRoads()
+                new_mph.updatePoly()
+
+                #check for clashes with solar rows
+                for strip in self.strips:
+                    for element in strip.getDataArray():
+                        if element.getDataType() == e_d.SOLAR_ROW:
+                            while not element.getPoly().intersection(self.mphs[-1].getPolygon()).is_empty:
+                                if not element.reduceRowSize(strip.anchor):
+                                    strip.removeFromDataArray(element)
+                                    break
+
+                #then calculate strips again based on strips
+                for strip in self.strips:
+                    strip_intersection = strip.getIntersectionPoly().intersection(self.mphs[-1].getPolygon())
+                    if strip_intersection.is_empty:
+                        continue
+                    else:
+                        strip.master_offset = strip_intersection.bounds[3]
+                        strip.recalc = True
+
+
+                
+              
+
+
                 
 
 
-    #can be bottom, top, centre or auto for alignment
-    def placeSolarRow(self, strip, align='bottom'):
+    #returns True if creates a road node
+    #returns False if no road node created
+    def placeSolarRow(self, strip, id, align='bottom'):
 
         #first get centroid of intersect_poly
         intersect_poly = strip.getIntersectionPoly()
@@ -155,6 +226,9 @@ class Farm:
         for point in intersect_poly.exterior.coords:
             if point[1] < centroidy and point[1] > y_minbound:
                 y_minbound = point[1]
+
+        #check for master offset
+        y_minbound = max(y_minbound, strip.master_offset)
 
         #get smallest y value above centroid
         y_maxbound = np.inf
@@ -185,12 +259,12 @@ class Farm:
             if num_2long_with_road != 0:
                 ws = ws % (max(c.SR_ROW_LENGTHS)*2 + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH)
 
-            for n in range(num_2long_with_road):
+            for _ in range(num_2long_with_road):
                 #add two new rows 
                 for n2 in [0,1]:
                     new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom')
                     
-                    while not  new_row.getPoly().within(self.polygon):
+                    while not new_row.getPoly().within(self.polygon):
                         if not new_row.reduceRowSize(strip.anchor):
                             break         
 
@@ -198,8 +272,9 @@ class Farm:
                     yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
                     if n2 == 1:
                         #process road point
-                        strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2]))
+                        strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2 + c.ROAD_DELTA], self.next_road_id))
                         yoffset += c.SR_ROADWAY_WIDTH
+                        return True
                         
 
             #now test single rows 
@@ -287,12 +362,28 @@ class Farm:
                     for element in strip.getDataArray():
 
                         #plot solar rows
+                        # if element.getDataType() == e_d.SOLAR_ROW:
+                        #     if self.rotation_point == None:
+                        #         plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.2)
+                        #     else:
+                        #         tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                        #         plt.plot(*tempplot.exterior.xy,'r',alpha=0.2)
+                        
+                        #DEBUG only plots duplicates
                         if element.getDataType() == e_d.SOLAR_ROW:
-                            if self.rotation_point == None:
-                                plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.9)
-                            else:
-                                tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
-                                plt.plot(*tempplot.exterior.xy,'r',alpha=0.9)
+                            plot = False
+                            for elm in strip.getDataArray():
+                                    if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
+                                        plot = not elm.getPoly().intersection(element.getPoly()).is_empty
+                            
+                            if plot:
+                                plt.plot(*element.getPoly().exterior.xy,'r',alpha=1)
+                        #     if self.rotation_point == None:
+                        #         plt.plot(*element.getPoly().exterior.xy,'r',alpha=0.2)
+                        #     else:
+                        #         tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                        #         plt.plot(*tempplot.exterior.xy,'r',alpha=0.2)
+
                         
                         #plot road nodes
                         elif element.getDataType() == e_p.ROAD_NODE:
@@ -645,26 +736,84 @@ class Farm:
     #     # for point in return_points:
     #     #     print(point)            
     #     return return_points
-    def addRoads2(self):
-        #get the left-right orientation of the bounding box
-        x = self.polygon.minimum_rotated_rectangle.exterior.xy[0]
-        y = self.polygon.minimum_rotated_rectangle.exterior.xy[1]
-        cx = self.polygon.minimum_rotated_rectangle.centroid.xy[0][0]
-        cy = self.polygon.minimum_rotated_rectangle.centroid.xy[1][0]      
+    # def addRoads2(self):
+    #     #get the left-right orientation of the bounding box
+    #     x = self.polygon.minimum_rotated_rectangle.exterior.xy[0]
+    #     y = self.polygon.minimum_rotated_rectangle.exterior.xy[1]
+    #     cx = self.polygon.minimum_rotated_rectangle.centroid.xy[0][0]
+    #     cy = self.polygon.minimum_rotated_rectangle.centroid.xy[1][0]      
 
-        new_mph = MultiPointHandler.MultiPointHandler()
+    #     new_mph = MultiPointHandler.MultiPointHandler()
 
-        for a in x:
-            for b in y:
-                if a < cx and b < cy:
-                    new_mph.addCoord([a,b])
-                if a > cx and b < cy:
-                    new_mph.addCoord([a,b])  
+    #     for a in x:
+    #         for b in y:
+    #             if a < cx and b < cy:
+    #                 new_mph.addCoord([a,b])
+    #             if a > cx and b < cy:
+    #                 new_mph.addCoord([a,b])  
 
-        print(new_mph.coords_array)  
+    #     print(new_mph.coords_array)  
 
-        new_mph.updatePoly()
-        self.mphs.append(new_mph)
+    #     new_mph.updatePoly()
+    #     self.mphs.append(new_mph)
 
+
+    def processRoads(self, stripsin, id, mph_in):
+        print("--|get list of all road nodes with correct id") if c.VERBOSE == True else False
+        
+        #get list of road pois
+        road_point_list = []
+        for strip in stripsin:
+            for rp in strip.getDataArray():     #for rp in dataarray
+                if rp.getDataType() == e_p.ROAD_NODE: #ff road nod
+                    if not rp.getProcessedFlag(): #if not processed
+                        if rp.getID() == id: #if id matches 
+                            road_point_list.append(rp)
+
+        for i, rp in enumerate(road_point_list):
+            if i < 2:
+                #just add the first two, dont check
+                mph_in.addCoord(rp.getCoords())
+                rp.handler = mph_in
+            else:
+                #check for minimum angle
+                delta_x_prev = road_point_list[i-2].getX() - road_point_list[i-1].getX()
+                delta_y_prev = road_point_list[i-2].getYTop() - road_point_list[i-1].getYTop()
+                delta_x_curr = road_point_list[i-1].getX() - road_point_list[i].getX()
+                delta_y_curr = road_point_list[i-1].getYTop() - road_point_list[i].getYTop() 
+                
+                curr_angle = math.degrees(math.atan2(delta_y_curr,delta_x_curr))
+                prev_angle = math.degrees(math.atan2(delta_y_prev,delta_x_prev))
+            
+                max_allowed_angle = prev_angle + c.MAX_ROAD_DELTA_ANGLE
+                min_allowed_angle = prev_angle - c.MAX_ROAD_DELTA_ANGLE
+
+                #if too steep, change y
+                if curr_angle > max_allowed_angle or curr_angle < min_allowed_angle:
+                    yshift = delta_y_curr - delta_y_prev
+                    road_point_list[i].shift(0,yshift)
+
+                mph_in.addCoord(road_point_list[i].getCoords())
+                rp.handler = mph_in
+                rp.setAsProcessed()
+
+
+        print("--|road layout done") if c.VERBOSE == True else False
+        
 
         
+    #step 4b - perform extrapolation
+    def extrapolateRoads(self):
+        print("--|road layout extrapolating") if c.VERBOSE == True else False
+        for i in self.mphs:
+            if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
+                
+                #use np to polyfit
+                yval = i.extrapolate(0,1,self.polygon.bounds[0])
+                i.addCoord([self.polygon.bounds[0], yval],loc='start')
+                
+                #use np to polyfit
+                length = i.getNumCoords()
+                yval = i.extrapolate(length-2,length-1,self.polygon.bounds[2])
+                i.addCoord([self.polygon.bounds[2], yval])   
+  

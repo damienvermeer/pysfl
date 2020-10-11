@@ -40,7 +40,6 @@ for shape in sf.iterShapes():
             continue  #setback from edge, handle multistring
         farm.createStrips()
         farm.populateAllSolarRows()
-        farm.addRoads2()
         print(farm.printModuleNumber())
         farm.plotFarm(plot_strips=True)
 

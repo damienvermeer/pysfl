@@ -18,6 +18,8 @@ class StripPoly:
         self.right_strip = None
         self.data = []
         self.anchor = "none"
+        self.master_offset = -np.inf
+        self.recalc = False
 
     def setLeftNeighbour(self, strip_poly):
         self.left_strip = strip_poly

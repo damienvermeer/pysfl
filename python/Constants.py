@@ -12,4 +12,5 @@ DEBUG = False                                #print lots of output
 ROAD_Y_DELTA = 1  #temp see if new line idea works
 SPIKE_MIN = 10
 MAX_ROAD_DELTA_ANGLE = 40
+ROAD_DELTA = 1  #additional offset between top of row and row marker
 #TODO implement some way to store 'road every second long row'

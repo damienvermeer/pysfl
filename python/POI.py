@@ -6,12 +6,19 @@ class POI:
 
     #point of intrest class
 
-    def __init__(self, coords, type_in=e.ROAD_NODE):
+    def __init__(self, coords, id, type_in=e.ROAD_NODE):
         self.coords = coords
         self.datatype = type_in
         self.y_coord = coords[1]
         self.processed_flag = False
         self.handler = None
+        self.id = id
+
+    def getID(self):
+        return self.id
+
+    def setID(self, id):
+        self.id = id
 
     def getDataType(self):
         return self.datatype
