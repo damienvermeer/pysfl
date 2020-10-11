@@ -45,6 +45,9 @@ class MultiPointHandler:
     def setCoords(self, coords):
         self.coords_array = coords
 
+    def getCoords(self, i):
+        return self.coords_array[i]
+
     def updatePoly(self, buffer=0):
         if self.datatype == e.MultiPointDataTypes.RING_ROAD:
             self.poly = LinearRing(self.coords_array).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)

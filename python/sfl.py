@@ -34,15 +34,15 @@ for shape in sf.iterShapes():
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
 
-    # if farm.getArea() > 1000000 and farm.getMBBRatio() < 0.5:
-    print("--|creating setback") if c.VERBOSE == True else False        
-    if not farm.setbackFarmBoundary(c.SF_SETBACK):
-        continue  #setback from edge, handle multistring
-    farm.createStrips()
-    farm.populateAllSolarRows()
-    # farm.addRoads()
-    print(farm.printModuleNumber())
-    farm.plotFarm(plot_strips=True)
+    if farm.getArea() > 100000:
+        print("--|creating setback") if c.VERBOSE == True else False        
+        if not farm.setbackFarmBoundary(c.SF_SETBACK):
+            continue  #setback from edge, handle multistring
+        farm.createStrips()
+        farm.populateAllSolarRows()
+        farm.addRoads2()
+        print(farm.printModuleNumber())
+        farm.plotFarm(plot_strips=True)
 
 
 

@@ -65,7 +65,7 @@ class SolarRow:
                 self.num_modules = c.SR_NUM_MODULES_PER_ROW[i+1]
                 x_min = self.polygon.bounds[0]
                 y_max = self.polygon.bounds[3]
-                width = c.SR_POST_POST_WIDTH
+                width = c.SR_MODULE_HEIGHT
                 height = c.SR_ROW_LENGTHS[i+1]
 
                 #set polygon

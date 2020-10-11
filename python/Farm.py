@@ -74,18 +74,25 @@ class Farm:
         poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
 
         #calc number of strips to make
-        num_strips = int((poly_width + c.SR_POST_POST_WIDTH)/c.SR_POST_POST_WIDTH)
+        num_strips = int(poly_width/c.SR_POST_POST_WIDTH)
         print("--|# strips = " + str(num_strips+1)) if c.VERBOSE == True else False
 
         #iterate over strips creating each of them
-        print("--|creating strips") if c.VERBOSE == True else False 
-        for snum in np.arange(self.polygon.bounds[0],self.polygon.bounds[2],c.SR_POST_POST_WIDTH):
-          
+        print("--|creating strips") if c.VERBOSE == True else False
+        print(np.linspace(self.polygon.bounds[0], num_strips*c.SR_POST_POST_WIDTH, num=num_strips))
+
+        x_min = self.polygon.bounds[0] + (c.SR_POST_POST_WIDTH/2)
+
+        while True:
             #generate strip polygon
-            x_min = snum
             y_min = self.polygon.bounds[1]
-            strip_poly = box(x_min, y_min, x_min+c.SR_POST_POST_WIDTH, y_min+poly_height)
+            strip_poly = box(x_min, y_min, x_min+c.SR_MODULE_HEIGHT, y_min+poly_height)
             
+            x_min += c.SR_POST_POST_WIDTH
+
+            if x_min > self.polygon.bounds[2]:
+                break
+
             #calculate intersection
             strip_intersection = None
             try:
@@ -93,17 +100,19 @@ class Farm:
             except Exception:
                 pass
 
+            if strip_intersection.is_empty:
+                continue
+            
             if strip_intersection.geom_type == "MultiPolygon":
                 for poly in strip_intersection:
                     new_strip = StripPoly.StripPoly(strip_poly, poly, self)
+                    new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
                     self.strips.append(new_strip)
-            else:
+            elif strip_intersection.geom_type == "Polygon":
                 new_strip = StripPoly.StripPoly(strip_poly, strip_intersection, self)
+                new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
                 self.strips.append(new_strip)
-
-            #set left neighbour
-            if len(self.strips) > 1:
-                new_strip.setLeftNeighbour(self.strips[-1])
+                                
 
         #set right neighbours
         print("--|assigning right neighbours") if c.VERBOSE == True else False 
@@ -142,13 +151,13 @@ class Farm:
         centroidy = intersect_poly.centroid.xy[1][0]
 
         #get largest y value below centroid
-        y_minbound = -99999999999999999
+        y_minbound = -np.inf
         for point in intersect_poly.exterior.coords:
             if point[1] < centroidy and point[1] > y_minbound:
                 y_minbound = point[1]
 
         #get smallest y value above centroid
-        y_maxbound = 99999999999999999
+        y_maxbound = np.inf
         for point in intersect_poly.exterior.coords:
             if point[1] > centroidy and point[1] < y_maxbound:
                 y_maxbound = point[1]
@@ -165,6 +174,8 @@ class Farm:
             
             yoffset = c.SR_END_DELTA
 
+            strip.setAnchor(align)
+
             #TODO make this more flexible for different row lengths
 
             #test 2 long and a road
@@ -175,12 +186,22 @@ class Farm:
                 ws = ws % (max(c.SR_ROW_LENGTHS)*2 + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH)
 
             for n in range(num_2long_with_road):
-                #add two new rows
-                strip.addToDataArray(SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_POST_POST_WIDTH, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom'))
-                yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
-                strip.addToDataArray(SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_POST_POST_WIDTH, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom'))
-                yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH
-            
+                #add two new rows 
+                for n2 in [0,1]:
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom')
+                    
+                    while not  new_row.getPoly().within(self.polygon):
+                        if not new_row.reduceRowSize(strip.anchor):
+                            break         
+
+                    strip.addToDataArray(new_row)
+                    yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
+                    if n2 == 1:
+                        #process road point
+                        strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2]))
+                        yoffset += c.SR_ROADWAY_WIDTH
+                        
+
             #now test single rows 
             for row_length in c.SR_ROW_LENGTHS:
                 #first try with end-end width
@@ -191,7 +212,13 @@ class Farm:
                     ws = ws % (row_length + c.SR_END_END_WIDTH)         
 
                 for n in range(num_row_add):
-                    strip.addToDataArray(SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_POST_POST_WIDTH, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom'))
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom')
+                                      
+                    while not new_row.getPoly().within(self.polygon):
+                        if not new_row.reduceRowSize(strip.anchor):
+                            break           
+                    
+                    strip.addToDataArray(new_row)
                     yoffset += row_length + c.SR_END_END_WIDTH
 
                 #then retry without end-end width
@@ -202,9 +229,14 @@ class Farm:
                     ws = ws % (row_length)         
 
                 for n in range(num_row_add):
-                    strip.addToDataArray(SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_POST_POST_WIDTH, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom'))
-                    yoffset += row_length           
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom')
+                                      
+                    while not new_row.getPoly().within(self.polygon):
+                        if not new_row.reduceRowSize(strip.anchor):
+                            break         
 
+                    strip.addToDataArray(new_row)
+                    yoffset += row_length
         else:
             raise ValueError("Not implemented anything other than \'bottom\' align yet.")
 
@@ -269,6 +301,14 @@ class Farm:
                             else:
                                 tempplot = affinity.rotate(element.getCoordsAsPoint(), -self.rotation, origin=self.rotation_point)
                                 plt.scatter(*tempplot.xy,c='y',alpha=0.9)
+        # #debug
+        # coords = self.getBoundaryToLine(self.getBoundaryPoly(), self.polygon.centroid.xy[1][0])
+        # temp_poly = LineString(coords).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
+        # plt.plot(*temp_poly.exterior.xy ,c='purple',alpha=0.9)
+        # # temp_poly = LineString(coords).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
+        # # yoffset = 2*max(c.SR_ROW_LENGTHS)+c.SR_END_END_WIDTH+c.SR_ROADWAY_WIDTH
+        # # plt.plot(*affinity.translate(temp_poly, xoff=0, yoff=yoffset).exterior.xy,'purple',linestyle='dashed')
+
         #plot roads
         for mph in self.mphs:
             if self.rotation_point == None:
@@ -335,113 +375,113 @@ class Farm:
             stripsiter = self.strips
 
         #step 1 - process and add road POI markers
-        print("--|road layout starting") if c.VERBOSE == True else False
+        # print("--|road layout starting") if c.VERBOSE == True else False
 
-        if method == 'numlongrows':
-            print("--|road layout method numlongrows") if c.VERBOSE == True else False
-            #add a POI road marker every 2nd long row
-            for strip in stripsiter:
-                counter = 0
-                if strip.anchor == 'bottom':
-                    dataarray = strip.getDataArray()
-                else:
-                    dataarray = strip.getDataArray()[::-1]
+        # if method == 'numlongrows':
+        #     print("--|road layout method numlongrows") if c.VERBOSE == True else False
+        #     #add a POI road marker every 2nd long row
+        #     for strip in stripsiter:
+        #         counter = 0
+        #         if strip.anchor == 'bottom':
+        #             dataarray = strip.getDataArray()
+        #         else:
+        #             dataarray = strip.getDataArray()[::-1]
 
-                for element in dataarray:
-                    if element.getDataType() == e_d.SOLAR_ROW:
-                        #this is a solar row
-                        if element.getNumberModules() == max(c.SR_NUM_MODULES_PER_ROW):
-                            #this is a (max) long row
-                            counter += 1
-                            if counter == parameter:
-                                #this is the 'parameterth' long row adjacent, add a road calc node
-                                counter = 0
-                                if strip.anchor == 'bottom':
-                                    coords = [element.getXMidpoint(),element.getYTop()+0.001]
-                                else:
-                                    coords = [element.getXMidpoint(),element.getYBottom()-0.001]
-                                strip.addToDataArray(POI.POI(coords))
-                        else:
-                            counter = 0
-        elif method == 'minspace':
-            raise ValueError("minspace road placement not yet implemented")
-        else:
-            raise ValueError("addRoads not given valid method")
+        #         for element in dataarray:
+        #             if element.getDataType() == e_d.SOLAR_ROW:
+        #                 #this is a solar row
+        #                 if element.getNumberModules() == max(c.SR_NUM_MODULES_PER_ROW):
+        #                     #this is a (max) long row
+        #                     counter += 1
+        #                     if counter == parameter:
+        #                         #this is the 'parameterth' long row adjacent, add a road calc node
+        #                         counter = 0
+        #                         if strip.anchor == 'bottom':
+        #                             coords = [element.getXMidpoint(),element.getYTop()+0.001]
+        #                         else:
+        #                             coords = [element.getXMidpoint(),element.getYBottom()-0.001]
+        #                         strip.addToDataArray(POI.POI(coords))
+        #                 else:
+        #                     counter = 0
+        # elif method == 'minspace':
+        #     raise ValueError("minspace road placement not yet implemented")
+        # else:
+        #     raise ValueError("addRoads not given valid method")
 
         #step 2 - check there are no POI  road nodes on the end of the stip list
-        print("--|cleaning up excess road markers") if c.VERBOSE == True else False
-        for strip in stripsiter:
-            dataarray = strip.getDataArray()
+        # print("--|cleaning up excess road markers") if c.VERBOSE == True else False
+        # for strip in stripsiter:
+        #     dataarray = strip.getDataArray()
 
-            if len(dataarray) == 0:
-                continue
+        #     if len(dataarray) == 0:
+        #         continue
             
-            if dataarray[-1].getDataType() == e_p.ROAD_NODE:
-                strip.removeFromDataArray(dataarray[-1])
-                print("---/Debug/Removed ROAD_NODE POI from end") if c.DEBUG == True else False
+        #     if dataarray[-1].getDataType() == e_p.ROAD_NODE:
+        #         strip.removeFromDataArray(dataarray[-1])
+        #         print("---/Debug/Removed ROAD_NODE POI from end") if c.DEBUG == True else False
 
-            if dataarray[0].getDataType() == e_p.ROAD_NODE:
-                strip.removeFromDataArray(dataarray[0])
-                print("---/Debug/Removed ROAD_NODE POI from start") if c.DEBUG == True else False
+        #     if dataarray[0].getDataType() == e_p.ROAD_NODE:
+        #         strip.removeFromDataArray(dataarray[0])
+        #         print("---/Debug/Removed ROAD_NODE POI from start") if c.DEBUG == True else False
                                                         
         #once we get to here, we have road markers everywhere
         #step 3 - get road poi nodes within some delta (NEW_ROAD_DELTA)
         print("--|connecting road nodes") if c.VERBOSE == True else False
         for strip in stripsiter:
-            for poly in strip.getIntersectionPoly(type='list'): #handles multipolyon
-                for rp in strip.getDataArray():
-                    if rp.getDataType() == e_p.ROAD_NODE and not rp.getProcessedFlag():
-                        if rp.handler == None:
-                            #create new road - defaults to radial road
-                            new_mph = MultiPointHandler.MultiPointHandler()
-                            new_mph.addCoord([rp.getX(),rp.getYTop()])
-                            rp.handler = new_mph
-                            self.mphs.append(new_mph)
-                            
-                        mindist = 999
-                        mindistrp = None
+            poly = strip.getIntersectionPoly()
+            for rp in strip.getDataArray():
+                if rp.getDataType() == e_p.ROAD_NODE and not rp.getProcessedFlag():
+                    if rp.handler == None:
+                        #create new road - defaults to radial road
+                        new_mph = MultiPointHandler.MultiPointHandler()
+                        new_mph.addCoord([rp.getX(),rp.getYTop()])
+                        rp.handler = new_mph
+                        self.mphs.append(new_mph)
+                        
+                    mindist = np.inf
+                    mindistrp = None
 
-                        if reverse:
-                            neigiter = strip.getLeftNeighbour()
-                        else:
-                            neigiter = strip.getRightNeighbour()
+                    if reverse:
+                        neigiter = strip.getLeftNeighbour()
+                    else:
+                        neigiter = strip.getRightNeighbour()
 
-                        for i, test_rp in enumerate(neigiter.getDataArray()):
-                            if test_rp.getDataType() == e_p.ROAD_NODE:
-                                #calculate distance from the current point
-                                deltax = test_rp.getX() - rp.getX()
-                                deltay = test_rp.getYTop() - rp.getYTop()
-                                dist = np.sqrt(np.power(deltax,2)+np.power(deltay,2))
+                    for i, test_rp in enumerate(neigiter.getDataArray()):
+                        if test_rp.getDataType() == e_p.ROAD_NODE:
+                            #calculate distance from the current point
+                            deltax = test_rp.getX() - rp.getX()
+                            deltay = test_rp.getYTop() - rp.getYTop()
+                            dist = np.sqrt(np.power(deltax,2)+np.power(deltay,2))
 
-                                #calculate acceptable offset
-                                nmod = neigiter.getDataArray()[i-1].getNumberModules()
-                                prlength = c.ROAD_Y_DELTA*c.SR_ROW_LENGTHS[c.SR_NUM_MODULES_PER_ROW.index(nmod)]
-                                compdist = np.sqrt(np.power(c.SR_POST_POST_WIDTH,2)+np.power(prlength,2))
+                            #calculate acceptable offset
+                            nmod = neigiter.getDataArray()[i-1].getNumberModules()
+                            prlength = c.ROAD_Y_DELTA*c.SR_ROW_LENGTHS[c.SR_NUM_MODULES_PER_ROW.index(nmod)]
+                            compdist = np.sqrt(np.power(c.SR_POST_POST_WIDTH,2)+np.power(prlength,2))
 
-                                #check for minimum angle
-                                curr_angle = math.degrees(math.atan2(deltay,deltax))
-                                if len(rp.handler.coords_array) > 1:
-                                    prev_angle = math.degrees(math.atan2(rp.getYTop()-rp.handler.coords_array[-2][1], rp.getX()-rp.handler.coords_array[-2][0]))
-                                else:
-                                    prev_angle = curr_angle  
+                            #check for minimum angle
+                            curr_angle = math.degrees(math.atan2(deltay,deltax))
+                            if len(rp.handler.coords_array) > 1:
+                                prev_angle = math.degrees(math.atan2(rp.getYTop()-rp.handler.coords_array[-2][1], rp.getX()-rp.handler.coords_array[-2][0]))
+                            else:
+                                prev_angle = curr_angle  
 
-                                #find min distance rp
-                                if dist <= compdist:
-                                    if np.abs(prev_angle-curr_angle) < c.MAX_ROAD_DELTA_ANGLE:
-                                        if dist < mindist:
-                                            mindist = dist
-                                            mindistrp = test_rp
-                                            print("---/Debug/New min distance") if c.DEBUG == True else False
-                                        else:
-                                            print("---/Debug/not smaller than mindist") if c.DEBUG == True else False
+                            #find min distance rp
+                            if dist <= compdist:
+                                if np.abs(prev_angle-curr_angle) < c.MAX_ROAD_DELTA_ANGLE:
+                                    if dist < mindist:
+                                        mindist = dist
+                                        mindistrp = test_rp
+                                        print("---/Debug/New min distance") if c.DEBUG == True else False
+                                    else:
+                                        print("---/Debug/not smaller than mindist") if c.DEBUG == True else False
 
-                        #use the min distance rp
-                        #this is a valid road point which we can
-                        #build a road with rp
-                        if not mindistrp == None:
-                            rp.handler.addCoord([mindistrp.getX(), mindistrp.getYTop()])
-                            mindistrp.handler = rp.handler
-                            rp.setAsProcessed()
+                    #use the min distance rp
+                    #this is a valid road point which we can
+                    #build a road with rp
+                    if not mindistrp == None:
+                        rp.handler.addCoord([mindistrp.getX(), mindistrp.getYTop()])
+                        mindistrp.handler = rp.handler
+                        rp.setAsProcessed()
 
                         
         #step 4a - clean roads for extrapolation
@@ -549,4 +589,82 @@ class Farm:
                             strip.removeFromDataArray(rp)
 
         print("--|road layout done") if c.VERBOSE == True else False
+        
+
+    # def getBoundaryToLine(self, polygonin, y, mode='below'):
+
+    #     polygonin = polygonin.boundary.parallel_offset(0, 'left')
+
+    #     #travel along boundary interpolating
+    #     return_points = []
+    #     for f in range(0, int(np.ceil(polygonin.length)) + 1):
+    #         ycoord = polygonin.interpolate(f).coords[0][1]
+    #         if mode == 'below':
+    #             if ycoord < y:
+    #                 return_points.append(polygonin.interpolate(f).coords[0])
+
+    #     #median x and y
+    #     # median_x = np.median(return_points[0])
+    #     # median_y = np.median(return_points[1])
+
+    #     # #calc median slope
+    #     # slopes = []
+    #     # for i, e in enumerate(return_points):
+    #     #     if i == 0:
+    #     #         continue 
+
+    #     #     deltax = e[0] - return_points[i-1][0]
+    #     #     deltay = e[1] - return_points[i-1][1]
+    #     #     slopes.append(math.degrees(math.atan2(deltay,deltax)))
+
+    #     # #get median slope
+    #     # median_slope = np.mean(slopes)
+
+    #     # #loop through fixing slope
+    #     # for i, e in enumerate(return_points):
+    #     #     if i == 0:
+    #     #         continue 
+
+    #     #     deltax = e[0] - return_points[i-1][0]
+    #     #     deltay = e[1] - return_points[i-1][1]
+            
+    #     #     # check if too steep (angle > median + delta)
+    #     #     curr_slope = math.degrees(math.atan2(deltay,deltax))
+    #     #     max_slope = median_slope + c.MAX_ROAD_DELTA_ANGLE
+    #     #     min_slope = median_slope - c.MAX_ROAD_DELTA_ANGLE
+    #     #     # print("current angle = " + str(curr_slope))
+    #     #     # print("max_slope = " + str(max_slope))
+    #     #     # print("min_slope = " + str(min_slope))
+    #     #     if curr_slope > max_slope or curr_slope < min_slope:
+    #     #         print("changing y from = "+str(return_points[i-1][1])+"to = " + str(return_points[i-1][1] - (deltax * np.tan(np.deg2rad(c.MAX_ROAD_DELTA_ANGLE)))))
+    #     #         #too steep, assume X is fixed and change y
+    #     #         return_points[i-1] = [return_points[i-1][0], return_points[i-1][1] - (deltax * np.tan(np.deg2rad(c.MAX_ROAD_DELTA_ANGLE)))]
+    #     #     # print("--")
+    #     #     x=0
+        
+    #     # for point in return_points:
+    #     #     print(point)            
+    #     return return_points
+    def addRoads2(self):
+        #get the left-right orientation of the bounding box
+        x = self.polygon.minimum_rotated_rectangle.exterior.xy[0]
+        y = self.polygon.minimum_rotated_rectangle.exterior.xy[1]
+        cx = self.polygon.minimum_rotated_rectangle.centroid.xy[0][0]
+        cy = self.polygon.minimum_rotated_rectangle.centroid.xy[1][0]      
+
+        new_mph = MultiPointHandler.MultiPointHandler()
+
+        for a in x:
+            for b in y:
+                if a < cx and b < cy:
+                    new_mph.addCoord([a,b])
+                if a > cx and b < cy:
+                    new_mph.addCoord([a,b])  
+
+        print(new_mph.coords_array)  
+
+        new_mph.updatePoly()
+        self.mphs.append(new_mph)
+
+
         
