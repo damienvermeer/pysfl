@@ -173,7 +173,7 @@ class Farm:
                 #create new road
                 new_mph = MultiPointHandler.MultiPointHandler() #defaults to non-radial road
                 self.mphs.append(new_mph)
-                
+
                 #process roads from midpoint
                 left_strip_list = self.strips[len(self.strips)//2:] #middle to left
                 right_strip_list = self.strips[:len(self.strips)//2][::-1] #middle to right
@@ -185,7 +185,9 @@ class Farm:
                 new_mph.sortByX()
                 self.extrapolateRoads()
                 new_mph.updatePoly()
+                    
 
+                    
                 #check for clashes with solar rows
                 for strip in self.strips:
                     for element in strip.getDataArray():
@@ -339,7 +341,11 @@ class Farm:
 
 
 
-    def plotFarm(self, plot_strips=False, plot_strip_ints=True, to_image=False, plot_sf_rows=True):
+    def plotFarm(self, id, plot_strips=False, plot_strip_ints=True, to_image=False, plot_sf_rows=True, filesuffix=""):
+        plt.rcParams['axes.linewidth'] = .2
+        plt.rcParams['lines.linewidth'] = .2
+        plt.rcParams['patch.linewidth'] = .2
+
         #plot to screen
         print("--|Starting to plot") if c.DEBUG == True else False
         nplot = 0
@@ -383,10 +389,10 @@ class Farm:
                         # plot solar rows
                         if element.getDataType() == e_d.SOLAR_ROW:
                             if self.rotation_point == None:
-                                plt.plot(*element.getPoly().exterior.xy,'orange',alpha=0.75)
+                                plt.fill(*element.getPoly().exterior.xy,'orange',alpha=0.75)
                             else:
                                 tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
-                                plt.plot(*tempplot.exterior.xy,'orange',alpha=0.75)
+                                plt.fill(*tempplot.exterior.xy,'orange',alpha=0.75)
                         
                         #DEBUG only plots duplicates
                         if element.getDataType() == e_d.SOLAR_ROW:
@@ -401,12 +407,12 @@ class Farm:
 
                         
                         #plot road nodes
-                        elif element.getDataType() == e_p.ROAD_NODE:
-                            if self.rotation_point == None:
-                                plt.scatter(element.getCoords()[0],element.getCoords()[1],c='y',alpha=0.9)
-                            else:
-                                tempplot = affinity.rotate(element.getCoordsAsPoint(), -self.rotation, origin=self.rotation_point)
-                                plt.scatter(*tempplot.xy,c='y',alpha=0.9)
+                        #elif element.getDataType() == e_p.ROAD_NODE:
+                        #    if self.rotation_point == None:
+                        #        plt.scatter(element.getCoords()[0],element.getCoords()[1],c='y',alpha=0.9)
+                        #    else:
+                        #        tempplot = affinity.rotate(element.getCoordsAsPoint(), -self.rotation, origin=self.rotation_point)
+                        #        plt.scatter(*tempplot.xy,c='y',alpha=0.9)
         # #debug
         # coords = self.getBoundaryToLine(self.getBoundaryPoly(), self.polygon.centroid.xy[1][0])
         # temp_poly = LineString(coords).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
@@ -439,8 +445,13 @@ class Farm:
             tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
             plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
         
+        plt.title("ID # " + str(id) + " - PaF = " + str(round(self.getPaF()*100,2)) + "%")
         plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
+        axes = plt.gca()
+        axes.set_xlim([self.pre_setback_polygon.bounds[0],self.pre_setback_polygon.bounds[2]])
+        axes.set_ylim([self.pre_setback_polygon.bounds[1],self.pre_setback_polygon.bounds[3]])
+        # plt.show()
+        plt.savefig(r"C:\Users\Damien\Desktop\output_solar"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=300)
         plt.clf()
         plt.cla()
         plt.close()
@@ -618,8 +629,8 @@ class Farm:
                 #use np to polyfit
                 length = i.getNumCoords()
                 yval = i.extrapolate(length-2,length-1,self.polygon.bounds[2])
-                i.addCoord([self.polygon.bounds[2], yval])   
-  
+                i.addCoord([self.polygon.bounds[2], yval])
+
         #step 5 - create road polygons
         print("--|road layout creating road polys") if c.VERBOSE == True else False 
         remove_list = []
@@ -822,13 +833,20 @@ class Farm:
         print("--|road layout extrapolating") if c.VERBOSE == True else False
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
-                
                 #use np to polyfit
-                yval = i.extrapolate(0,1,self.polygon.bounds[0])
-                i.addCoord([self.polygon.bounds[0], yval],loc='start')
+                if i.extrapolate(0,1,self.polygon.bounds[0]) != None:
+                    yval = i.extrapolate(0,1,self.polygon.bounds[0])
+                    i.addCoord([self.polygon.bounds[0], yval],loc='start')
                 
                 #use np to polyfit
                 length = i.getNumCoords()
-                yval = i.extrapolate(length-2,length-1,self.polygon.bounds[2])
-                i.addCoord([self.polygon.bounds[2], yval])   
-  
+                if i.extrapolate(length-2,length-1,self.polygon.bounds[2]) != None:
+                    yval = i.extrapolate(length-2,length-1,self.polygon.bounds[2])
+                    i.addCoord([self.polygon.bounds[2], yval])   
+
+    def getPaF(self):
+        #returns the packing factor (array area / total area)
+        array_area = self.getModuleNumber()*c.SR_MODULE_HEIGHT
+        total_area = self.polygon.area
+
+        return array_area/total_area

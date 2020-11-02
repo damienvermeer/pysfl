@@ -17,8 +17,8 @@ count = 0
 for shape in sf.iterShapes():
 
     count += 1
-    if count < 100:  #skip to ID
-        continue
+    # if count < 10000:  #skip to ID
+    #     continue
 
     print("---------------------------")
     print("Solar Farm Layout Tool V0.1")
@@ -33,15 +33,14 @@ for shape in sf.iterShapes():
     farm.setAzimuth(0)
     print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
-
-    if farm.getArea() > 100000:
-        print("--|creating setback") if c.VERBOSE == True else False        
-        if not farm.setbackFarmBoundary(c.SF_SETBACK):
-            continue  #setback from edge, handle multistring
-        farm.createStrips()
-        farm.populateAllSolarRows()
-        print(farm.printModuleNumber())
-        farm.plotFarm(plot_strips=True)
+    print("--|creating setback") if c.VERBOSE == True else False        
+    if not farm.setbackFarmBoundary(c.SF_SETBACK):
+        continue  #setback from edge, handle multistring
+    farm.plotFarm(count, plot_strips=False, plot_strip_ints=False, plot_sf_rows=False, filesuffix="orig")
+    farm.createStrips()
+    farm.populateAllSolarRows()
+    print(farm.printModuleNumber())
+    farm.plotFarm(count, plot_strips=False, plot_strip_ints=False)
 
 
 

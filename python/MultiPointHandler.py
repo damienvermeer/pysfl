@@ -97,10 +97,7 @@ class MultiPointHandler:
         
 
     def extrapolate(self, i1, i2, xresolve):
-        if i1 > len(self.coords_array) or i2 > len(self.coords_array):
-            return None #handle out of index errors
-        else:
-            #valid indexes
+        try:
             x1 = self.coords_array[i1][0]
             y1 = self.coords_array[i1][1]
             x2 = self.coords_array[i2][0]
@@ -111,6 +108,8 @@ class MultiPointHandler:
             params = np.polyfit(xdata, ydata, 1) #linear fit
 
             return np.polyval(params, xresolve) #return extrapolate
+        except:
+            return None
 
 
 
