@@ -272,6 +272,33 @@ class Farm:
             strip.setAnchor(align)
 
             #TODO make this more flexible for different row lengths
+            
+            #check if first row is 1long flag set to true
+            if c.FIRST_ROW_1LONG_ROAD and len(strip.data) == 0:
+                
+                #test 1 long and a road
+                num_1long_with_road = int(ws / (max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH))
+                    
+                #if we have at least 1 then update to the remainder
+                if num_1long_with_road != 0:
+                    ws = ws % (max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH)
+                
+                #add row and road
+                new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom')
+                
+                while not new_row.getPoly().within(self.polygon):
+                    if not new_row.reduceRowSize(strip.anchor):
+                        break         
+
+                strip.addToDataArray(new_row)
+                yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
+                
+                #process road point
+                strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2 + c.ROAD_DELTA], self.next_road_id))
+                yoffset += c.SR_ROADWAY_WIDTH
+                return True
+                    
+                    
 
             #test 2 long and a road
             num_2long_with_road = int(ws / (max(c.SR_ROW_LENGTHS)*2 + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH))
@@ -448,10 +475,10 @@ class Farm:
         plt.title("ID # " + str(id) + " - PaF = " + str(round(self.getPaF()*100,2)) + "%")
         plt.gca().set_aspect('equal', adjustable='box')
         axes = plt.gca()
-        axes.set_xlim([self.pre_setback_polygon.bounds[0],self.pre_setback_polygon.bounds[2]])
-        axes.set_ylim([self.pre_setback_polygon.bounds[1],self.pre_setback_polygon.bounds[3]])
+        # axes.set_xlim([self.pre_setback_polygon.bounds[0]*1.3,self.pre_setback_polygon.bounds[2]*1.1])
+        # axes.set_ylim([self.pre_setback_polygon.bounds[1]*1.3,self.pre_setback_polygon.bounds[3]*1.1])
         # plt.show()
-        plt.savefig(r"C:\Users\Damien\Desktop\output_solar"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=300)
+        plt.savefig(r"C:\Users\Damien.Vermeer\Desktop\zLINKS\TEMP\sflayout"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=600)
         plt.clf()
         plt.cla()
         plt.close()
