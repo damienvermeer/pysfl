@@ -14,4 +14,7 @@ SPIKE_MIN = 10
 MAX_ROAD_DELTA_ANGLE = 50
 ROAD_DELTA = 1  #additional offset between top of row and row marker
 FIRST_ROW_1LONG_ROAD = False #if True, first row is NOT 2x long, just 1x long then road
+MODULE_RATING = 500 #watts
+INVERTER_RATING = 4400e3 #watts, use 4400 kVA as an example
+DC_RATIO = [1.10,1.30] #min and max dc ratio for inverters
 #TODO implement some way to store 'road every second long row'

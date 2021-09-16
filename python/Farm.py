@@ -1,4 +1,6 @@
 from shapely.geometry import *
+from shapely.geometry.point import PointAdapter
+from shapely.ops import *
 from shapely import affinity
 import Constants as c
 import matplotlib.pyplot as plt
@@ -430,7 +432,180 @@ class Farm:
                                         plot = not elm.getPoly().intersection(element.getPoly()).is_empty
                             if plot:
                                 plt.plot(*element.getPoly().exterior.xy,'r',alpha=1)
+                     
+                    for element in strip.getDataArray():
 
+                        # plot solar rows
+                        if element.getDataType() == e_d.SOLAR_ROW:
+                            if self.rotation_point == None:
+                                plt.fill(*element.getPoly().exterior.xy,'orange',alpha=0.75)
+                            else:
+                                tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                                plt.fill(*tempplot.exterior.xy,'orange',alpha=0.75)
+            
+            
+                                             
+            point_list = []            
+            print("--|Generating mmr for inverters") if c.DEBUG == True else False   
+            
+            mmrs = ['start'] 
+            loopnum = 0
+            
+            for cur_mmr in mmrs:
+                if cur_mmr == 'start':
+                    #first loop
+                    for strip in self.strips:
+                        for element in strip.getDataArray():
+                            if element.getDataType() == e_d.SOLAR_ROW:
+                                ytop, ybottom = [element.getYTop(), element.getYBottom()]
+                                # if self.rotation_point == None:
+                                #     plt.scatter(element.getXMidpoint(),ytop,c='r',alpha=0.9)
+                                #     plt.scatter(element.getXMidpoint(),ybottom,c='r',alpha=0.9)
+                                # else:
+                                #     tempplot1 = affinity.rotate(Point([element.getXMidpoint(), ytop]), -self.rotation, origin=self.rotation_point)
+                                #     tempplot2 = affinity.rotate(Point([element.getXMidpoint(), ybottom]), -self.rotation, origin=self.rotation_point)
+                                #     plt.scatter(*tempplot1.xy,c='r',alpha=0.9)
+                                #     plt.scatter(*tempplot2.xy,c='r',alpha=0.9)
+
+                                xmid = element.getXMidpoint()
+                                point_list.append((xmid,ytop))
+                                point_list.append((xmid,ybottom))
+                    
+                    #generate mmr
+                    mrr = MultiPoint(point_list).minimum_rotated_rectangle
+                    
+                    #plot mmr
+                    # if self.rotation_point == None:
+                    #     plt.plot(*mrr.exterior.xy,'b',alpha=0.75)
+                    # else:
+                    #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
+                    #     plt.plot(*tempplot.exterior.xy,'b',alpha=0.75)
+                    
+                    #split mmr on longest side
+                    sidecalc = []
+                    extcoords = list(mrr.exterior.coords)
+                    for i,_ in enumerate(extcoords[:-1]):
+                        midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
+                        sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
+                    
+                    #sort by length, then disregard the first two (these are the diagonals)
+                    sidecalc.sort(key=lambda x: x[0], reverse=True)
+                    print(sidecalc)
+                            
+                    #plot green and red dots for now. green = line to split
+                    # for i,x in enumerate(sidecalc):
+                    #     x = x[1]
+                    #     col = 'r' if i < 2 else 'g'
+                    #     if self.rotation_point == None:
+                    #         plt.scatter(x,ytop,c=col,alpha=0.9)
+                    #     else:
+                    #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
+                    #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
+                
+                    #create line between 'green dots'
+                    spliceline_pointslist = []
+                    for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
+                    spliceline = LineString(spliceline_pointslist) #first two points
+                    
+                    # if self.rotation_point == None:
+                    #     plt.scatter(*spliceline.xy,c='k',alpha=0.9,linewidths=5)
+                    # else:
+                    #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
+                    #     plt.scatter(*tempplot1.xy,c='k',alpha=0.9,linewidths=5)
+                    
+                    left,right = split(mrr,spliceline)
+                    for x in [left,right]:
+                        if self.rotation_point == None:
+                            plt.plot(*x.exterior.xy,'g',alpha=0.75)
+                        else:
+                            tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
+                            plt.plot(*tempplot.exterior.xy,'g',alpha=0.75)
+                            
+                    mmrs.append(left)
+                    mmrs.append(right)
+                else:
+                    #second loop
+                    point_list = []
+                    del mrr
+                    del spliceline
+                    for strip in self.strips:
+                        for element in strip.getDataArray():
+                            if element.getDataType() == e_d.SOLAR_ROW:
+                                ytop, ybottom = [element.getYTop(), element.getYBottom()]
+                                xmid = element.getXMidpoint()
+                                
+                                point1 = Point((xmid,ytop))
+                                if cur_mmr.contains(point1) or cur_mmr.intersects(point1):
+                                    point_list.append(point1)
+                                
+                                point2 = Point((xmid,ybottom))
+                                if cur_mmr.contains(point2) or cur_mmr.intersects(point2):
+                                    point_list.append(point2)
+                                
+                    #generate mmr
+                    mrr = MultiPoint(point_list).minimum_rotated_rectangle
+                    
+                    # #plot mmr
+                    # if self.rotation_point == None:
+                    #     plt.plot(*mrr.exterior.xy,'k',alpha=0.75, linewidth=2)
+                    # else:
+                    #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
+                    #     plt.plot(*tempplot.exterior.xy,'k',alpha=0.75, linewidth=2)
+                    
+                    #split mmr on longest side
+                    sidecalc = []
+                    extcoords = list(mrr.exterior.coords)
+                    for i,_ in enumerate(extcoords[:-1]):
+                        midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
+                        sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
+                    
+                    #sort by length, then disregard the first two (these are the diagonals)
+                    sidecalc.sort(key=lambda x: x[0], reverse=True)
+                    print(sidecalc)
+                            
+                    #plot green and red dots for now. green = line to split
+                    # for i,x in enumerate(sidecalc):
+                    #     x = x[1]
+                    #     col = 'r' if i < 2 else 'g'
+                    #     if self.rotation_point == None:
+                    #         plt.scatter(x,ytop,c=col,alpha=0.9)
+                    #     else:
+                    #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
+                    #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
+                
+                    
+                
+                    #create line between 'green dots'
+                    spliceline_pointslist = []
+                    for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
+                    spliceline = LineString(spliceline_pointslist) #first two points                  
+
+                    # if self.rotation_point == None:
+                    #     plt.scatter(*spliceline.xy,c='b',alpha=0.9,linewidths=0.5)
+                    # else:
+                    #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
+                    #     plt.scatter(*tempplot1.xy,c='b',alpha=0.9,linewidths=0.5)
+                    
+                    plt.savefig(r"C:\Users\Damien.Vermeer\Desktop\zLINKS\TEMP\sflayout"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=600)                 
+                    results = split(mrr,snap(spliceline,mrr,0.1))
+                    for x in list(results):
+                        if self.rotation_point == None:
+                            plt.plot(*x.exterior.xy,alpha=0.75, linewidth=1)
+                        else:
+                            tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
+                            plt.plot(*tempplot.exterior.xy,alpha=0.75, linewidth=1)
+                            
+                    mmrs.append(results[0])
+                    mmrs.append(results[1])
+                    loopnum += 1
+                    if loopnum == 6: break
+
+                    
+                    
+                    
+                    
+                    
+                    
 
                         
                         #plot road nodes
@@ -448,17 +623,17 @@ class Farm:
         # # yoffset = 2*max(c.SR_ROW_LENGTHS)+c.SR_END_END_WIDTH+c.SR_ROADWAY_WIDTH
         # # plt.plot(*affinity.translate(temp_poly, xoff=0, yoff=yoffset).exterior.xy,'purple',linestyle='dashed')
 
-        #plot roads
-        for mph in self.mphs:
-            if self.rotation_point == None:
-                plt.plot(*mph.getPolygon().exterior.xy,'y',linestyle='dashed')
-                for interior in mph.getPolygon().interiors:
-                    plt.plot(*interior.xy,'y',linestyle='dashed')
-            else:
-                tempplot = affinity.rotate(mph.getPolygon(), -self.rotation, origin=self.rotation_point)
-                plt.plot(*tempplot.exterior.xy,'y',linestyle='dashed')
-                for interior in tempplot.interiors:
-                    plt.plot(*interior.xy,'y',linestyle='dashed')
+        # #plot roads
+        # for mph in self.mphs:
+        #     if self.rotation_point == None:
+        #         plt.plot(*mph.getPolygon().exterior.xy,'y',linestyle='dashed')
+        #         for interior in mph.getPolygon().interiors:
+        #             plt.plot(*interior.xy,'y',linestyle='dashed')
+        #     else:
+        #         tempplot = affinity.rotate(mph.getPolygon(), -self.rotation, origin=self.rotation_point)
+        #         plt.plot(*tempplot.exterior.xy,'y',linestyle='dashed')
+        #         for interior in tempplot.interiors:
+        #             plt.plot(*interior.xy,'y',linestyle='dashed')
 
             
                         

@@ -5,7 +5,7 @@
 import Constants as c
 import Farm
 import time
-
+import inverterlocate
 # code starts here --------
 
 from pykml import parser
@@ -40,11 +40,12 @@ print("---------------------------")
 
 # #create Farm:
 print("--|creating farm boundary") if c.VERBOSE == True else False
-farm = Farm.Farm(coords)  #create farm
+# farm = Farm.Farm(coords)  #create farm
+farm = Farm.Farm([(0,0),(200,0),(400,400),(0,400)])  #create farm
 # print("--|scaling farm boundary") if c.VERBOSE == True else False
 # farm.scaleFarmBoundary(c.SCALE_FACTOR_FROM_DBF) #scale based on shapefile
 farm.moveCentroidToOrigin() #set before choose azimuth
-farm.setAzimuth(180)
+farm.setAzimuth(0)
 print("--|moving to origin & setting azimuth") if c.VERBOSE == True else False
 
 print("--|creating setback")    
@@ -54,6 +55,7 @@ farm.createStrips()
 farm.populateAllSolarRows()
 print(farm.printModuleNumber())
 farm.plotFarm(1, plot_strips=False, plot_strip_ints=False)
+# inverterlocate.calculate_inv_locations(farm)
 
 
 
