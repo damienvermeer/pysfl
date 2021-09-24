@@ -659,7 +659,7 @@ class Farm:
         # axes.set_xlim([self.pre_setback_polygon.bounds[0]*1.3,self.pre_setback_polygon.bounds[2]*1.1])
         # axes.set_ylim([self.pre_setback_polygon.bounds[1]*1.3,self.pre_setback_polygon.bounds[3]*1.1])
         # plt.show()
-        plt.savefig(r"C:\Users\Damien.Vermeer\Desktop\zLINKS\TEMP\sflayout"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=600)
+        plt.savefig(f"{self.settings['output/directory']}\\{id}{filesuffix}.png", bbox_inches='tight', dpi=600)
         plt.clf()
         plt.cla()
         plt.close()

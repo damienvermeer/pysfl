@@ -42,6 +42,8 @@ sf_settings['roads/internal/spikemin'] = 10  #unknown to test?
 
 sf_settings['debug'] = False #True to display debug output
 
+sf_settings['output/directory'] = r"C:\Users\Damien\Desktop\solar output" #directory to output
+
 
 #use the 'generate' task using the target flag
 sf_generator.applySettings(sf_settings)
