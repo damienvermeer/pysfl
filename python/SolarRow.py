@@ -6,7 +6,7 @@ from Enums import SPDataTypes as e_d
 
 class SolarRow:
 
-    def __init__(self, x_corner, y_corner, row_width, row_height, num_modules, strip, align='bottom'):
+    def __init__(self, x_corner, y_corner, row_width, row_height, num_modules, strip, settings, align='bottom'):
         #create polygon strip
         if align == 'bottom':
             self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner+row_height), Point(x_corner, y_corner+row_height)])
@@ -17,6 +17,7 @@ class SolarRow:
         self.num_modules = num_modules
         self.strip = strip
         self.datatype = e_d.SOLAR_ROW
+        self.settings = settings
         
 
     def getPoly(self):
@@ -46,27 +47,27 @@ class SolarRow:
 
     def reduceRowSize(self, anchor):
         #get number of modules
-        i = c.SR_NUM_MODULES_PER_ROW.index(self.num_modules)
+        i = self.settings['row/nmodules'].index(self.num_modules)
 
-        if i == len(c.SR_ROW_LENGTHS)-1:  #cant make it any smaller
+        if i == len(self.settings['row/lengths'])-1:  #cant make it any smaller
             return False
         else:
             if(anchor == 'bottom'):
-                self.num_modules = c.SR_NUM_MODULES_PER_ROW[i+1]
+                self.num_modules = self.settings['row/nmodules'][i+1]
                 x_min = self.polygon.bounds[0]
                 y_min = self.polygon.bounds[1]
                 width = self.polygon.bounds[2] - self.polygon.bounds[0]
-                height = c.SR_ROW_LENGTHS[i+1]
+                height = self.settings['row/lengths'][i+1]
 
                 #set polygon
                 self.polygon = box(x_min, y_min, x_min+width, y_min+height)
                 return True
             else:   #if anchor is top
-                self.num_modules = c.SR_NUM_MODULES_PER_ROW[i+1]
+                self.num_modules = self.settings['row/nmodules'][i+1]
                 x_min = self.polygon.bounds[0]
                 y_max = self.polygon.bounds[3]
-                width = c.SR_MODULE_HEIGHT
-                height = c.SR_ROW_LENGTHS[i+1]
+                width = self.settings['module/height']
+                height = self.settings['row/lengths'][i+1]
 
                 #set polygon
                 self.polygon = box(x_min, y_max, x_min+width, y_max-height)

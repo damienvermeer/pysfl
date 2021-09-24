@@ -1,3 +1,4 @@
+from os import set_inheritable
 from shapely.geometry import *
 from shapely.geometry.point import PointAdapter
 from shapely.ops import *
@@ -13,17 +14,22 @@ from Enums import SPDataTypes as e_d
 import Enums as e 
 import MultiPointHandler
 import math
+import copy
 
 class Farm:
 
-    def __init__(self, shape_points):
+    def __init__(self, shape_points, settings):
         self.polygon = Polygon(shape_points)
+        self.settings = settings
         self.pre_setback_polygon = None
         self.strips = []
         self.rotation_point = None
         self.rotation = 0
         self.mphs = []
         self.next_road_id = 0
+
+    def getDefaultSettings(self):
+        return copy.deepcopy(default_settings)
 
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
@@ -56,7 +62,7 @@ class Farm:
         road_points.append(road_points[0])
 
         #create road handler
-        new_mph = MultiPointHandler.MultiPointHandler(type_in=e.MultiPointDataTypes.RING_ROAD)
+        new_mph = MultiPointHandler.MultiPointHandler(self.settings, type_in=e.MultiPointDataTypes.RING_ROAD)
         new_mph.setCoords(road_points)
         new_mph.updatePoly()
         self.mphs.append(new_mph)
@@ -70,28 +76,28 @@ class Farm:
     def createStrips(self):
 
         #create strips as an array of StripPolys
-        print("--|strip generator starting") if c.VERBOSE == True else False
+        print("--|strip generator starting") if self.settings['debug'] == True else False
 
         #calc polygon data
         poly_width = self.polygon.bounds[2] - self.polygon.bounds[0]
         poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
 
         #calc number of strips to make
-        num_strips = int(poly_width/c.SR_POST_POST_WIDTH)
-        print("--|# strips = " + str(num_strips+1)) if c.VERBOSE == True else False
+        num_strips = int(poly_width/self.settings['layout/post2post'])
+        print("--|# strips = " + str(num_strips+1)) if self.settings['debug'] == True else False
 
         #iterate over strips creating each of them
-        print("--|creating strips") if c.VERBOSE == True else False
-        print(np.linspace(self.polygon.bounds[0], num_strips*c.SR_POST_POST_WIDTH, num=num_strips))
+        print("--|creating strips") if self.settings['debug'] == True else False
+        # print(np.linspace(self.polygon.bounds[0], num_strips*self.settings['layout/post2post'], num=num_strips))
 
-        x_min = self.polygon.bounds[0] + (c.SR_POST_POST_WIDTH/2)
+        x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
 
         while True:
             #generate strip polygon
             y_min = self.polygon.bounds[1]
-            strip_poly = box(x_min, y_min, x_min+c.SR_MODULE_HEIGHT, y_min+poly_height)
+            strip_poly = box(x_min, y_min, x_min+self.settings['module/height'], y_min+poly_height)
             
-            x_min += c.SR_POST_POST_WIDTH
+            x_min += self.settings['layout/post2post']
 
             if x_min > self.polygon.bounds[2]:
                 break
@@ -118,7 +124,7 @@ class Farm:
                                 
 
         #set right neighbours
-        print("--|assigning right neighbours") if c.VERBOSE == True else False 
+        print("--|assigning right neighbours") if self.settings['debug'] == True else False 
         for i,e in enumerate(self.strips[:-1]):
             e.setRightNeighbour(self.strips[i+1])
 
@@ -135,7 +141,7 @@ class Farm:
 
 
     def populateAllSolarRows(self):
-        print("--|solar row layout generator starting") if c.VERBOSE == True else False
+        print("--|solar row layout generator starting") if self.settings['debug'] == True else False
 
         #check we have some strips to work on
         if len(self.strips) < 1:
@@ -152,10 +158,10 @@ class Farm:
             draw_road = False
             for stripcount, strip in enumerate(self.strips):
 
-                print("--|processing strip " + str(stripcount+1) +"/"+str(len(self.strips))) if stripcount % 10 == 0 and c.VERBOSE == True else False 
+                print("--|processing strip " + str(stripcount+1) +"/"+str(len(self.strips))) if stripcount % 10 == 0 and self.settings['debug'] == True else False 
 
                 #check if polygon area is less than smallest row area, continue
-                if c.SR_POST_POST_WIDTH*min(c.SR_ROW_LENGTHS) > strip.getIntersectionPoly().area:
+                if self.settings['layout/post2post']*min(self.settings['row/lengths']) > strip.getIntersectionPoly().area:
                     continue #too small to fit anything in
 
                 #draw solar row, returns True if need to put a road node down
@@ -173,7 +179,7 @@ class Farm:
                 #need to process roads
 
                 #create new road
-                new_mph = MultiPointHandler.MultiPointHandler() #defaults to non-radial road
+                new_mph = MultiPointHandler.MultiPointHandler(self.settings) #defaults to non-radial road
                 self.mphs.append(new_mph)
 
                 #process roads from midpoint
@@ -262,14 +268,14 @@ class Farm:
         #working space calc
         ws = y_maxbound - y_minbound
 
-        if min(c.SR_ROW_LENGTHS) > ws:
+        if min(self.settings['row/lengths']) > ws:
             return False #too small to fit anything in
 
         #else go on to alignment
 
         if align == 'bottom':
             
-            yoffset = c.SR_END_DELTA
+            yoffset = self.settings['layout/endrowspace']
 
             strip.setAnchor(align)
 
@@ -279,72 +285,72 @@ class Farm:
             if c.FIRST_ROW_1LONG_ROAD and len(strip.data) == 0:
                 
                 #test 1 long and a road
-                num_1long_with_road = int(ws / (max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH))
+                num_1long_with_road = int(ws / (max(self.settings['row/lengths']) + self.settings['layout/endrowspace'] + self.settings['roads/internal/clearwidth']))
                     
                 #if we have at least 1 then update to the remainder
                 if num_1long_with_road != 0:
-                    ws = ws % (max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH)
+                    ws = ws % (max(self.settings['row/lengths']) + self.settings['layout/endrowspace'] + self.settings['roads/internal/clearwidth'])
                 
                 #add row and road
-                new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom')
+                new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, self.settings['module/height'], max(self.settings['row/lengths']), self.settings['row/nmodules'][self.settings['row/lengths'].index(max(self.settings['row/lengths']))], self, settings=self.settings, align='bottom', )
                 
                 while not new_row.getPoly().within(self.polygon):
                     if not new_row.reduceRowSize(strip.anchor):
                         break         
 
                 strip.addToDataArray(new_row)
-                yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
+                yoffset += max(self.settings['row/lengths']) + self.settings['layout/endrowspace']
                 
                 #process road point
-                strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2 + c.ROAD_DELTA], self.next_road_id))
-                yoffset += c.SR_ROADWAY_WIDTH
+                strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + self.settings['roads/internal/clearwidth']/2 + self.settings['roads/internal/sep/road2rows']], self.next_road_id))
+                yoffset += self.settings['roads/internal/clearwidth']
                 return True
                     
                     
 
             #test 2 long and a road
-            num_2long_with_road = int(ws / (max(c.SR_ROW_LENGTHS)*2 + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH))
+            num_2long_with_road = int(ws / (max(self.settings['row/lengths'])*2 + self.settings['layout/endrowspace'] + self.settings['roads/internal/clearwidth']))
             
             #if we have at least 1 then update to the remainder
             if num_2long_with_road != 0:
-                ws = ws % (max(c.SR_ROW_LENGTHS)*2 + c.SR_END_END_WIDTH + c.SR_ROADWAY_WIDTH)
+                ws = ws % (max(self.settings['row/lengths'])*2 + self.settings['layout/endrowspace'] + self.settings['roads/internal/clearwidth'])
 
             for _ in range(num_2long_with_road):
                 #add two new rows 
                 for n2 in [0,1]:
-                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, max(c.SR_ROW_LENGTHS), c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(max(c.SR_ROW_LENGTHS))], self, align='bottom')
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, self.settings['module/height'], max(self.settings['row/lengths']), self.settings['row/nmodules'][self.settings['row/lengths'].index(max(self.settings['row/lengths']))], self, self.settings, align='bottom')
                     
                     while not new_row.getPoly().within(self.polygon):
                         if not new_row.reduceRowSize(strip.anchor):
                             break         
 
                     strip.addToDataArray(new_row)
-                    yoffset += max(c.SR_ROW_LENGTHS) + c.SR_END_END_WIDTH
+                    yoffset += max(self.settings['row/lengths']) + self.settings['layout/endrowspace']
                     if n2 == 1:
                         #process road point
-                        strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + c.SR_ROADWAY_WIDTH/2 + c.ROAD_DELTA], self.next_road_id))
-                        yoffset += c.SR_ROADWAY_WIDTH
+                        strip.addToDataArray(POI.POI([new_row.getXMidpoint(), new_row.getYTop() + self.settings['roads/internal/clearwidth']/2 + self.settings['roads/internal/sep/road2rows']], self.next_road_id))
+                        yoffset += self.settings['roads/internal/clearwidth']
                         return True
                         
 
             #now test single rows 
-            for row_length in c.SR_ROW_LENGTHS:
+            for row_length in self.settings['row/lengths']:
                 #first try with end-end width
-                num_row_add = int(ws / (row_length + c.SR_END_END_WIDTH))
+                num_row_add = int(ws / (row_length + self.settings['layout/endrowspace']))
 
                 #if we have at least 1 then update to the remainder
                 if num_row_add != 0:
-                    ws = ws % (row_length + c.SR_END_END_WIDTH)         
+                    ws = ws % (row_length + self.settings['layout/endrowspace'])         
 
                 for n in range(num_row_add):
-                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom')
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, self.settings['module/height'], row_length, self.settings['row/nmodules'][self.settings['row/lengths'].index(row_length)], self, self.settings, align='bottom')
                                       
                     while not new_row.getPoly().within(self.polygon):
                         if not new_row.reduceRowSize(strip.anchor):
                             break           
                     
                     strip.addToDataArray(new_row)
-                    yoffset += row_length + c.SR_END_END_WIDTH
+                    yoffset += row_length + self.settings['layout/endrowspace']
 
                 #then retry without end-end width
                 num_row_add = int(ws / (row_length))
@@ -354,7 +360,7 @@ class Farm:
                     ws = ws % (row_length)         
 
                 for n in range(num_row_add):
-                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, c.SR_MODULE_HEIGHT, row_length, c.SR_NUM_MODULES_PER_ROW[c.SR_ROW_LENGTHS.index(row_length)], self, align='bottom')
+                    new_row = SolarRow.SolarRow(x_corner, y_minbound+yoffset, self.settings['module/height'], row_length, self.settings['row/nmodules'][self.settings['row/lengths'].index(row_length)], self, self.settings, align='bottom')
                                       
                     while not new_row.getPoly().within(self.polygon):
                         if not new_row.reduceRowSize(strip.anchor):
@@ -382,7 +388,7 @@ class Farm:
         #iterate over strips
         if plot_strips or plot_strip_ints or plot_sf_rows:
             for strip in self.strips:
-                if c.VERBOSE:
+                if self.settings['debug']:
                     nplot += 1
                     print("--|Plotting "+str(nplot)+"/"+str(len(self.strips))) if nplot % 10 == 0 else False
                 
@@ -445,160 +451,160 @@ class Farm:
             
             
                                              
-            point_list = []            
-            print("--|Generating mmr for inverters") if c.DEBUG == True else False   
+            # point_list = []            
+            # print("--|Generating mmr for inverters") if c.DEBUG == True else False   
             
-            mmrs = ['start'] 
-            loopnum = 0
+            # mmrs = ['start'] 
+            # loopnum = 0
             
-            for cur_mmr in mmrs:
-                if cur_mmr == 'start':
-                    #first loop
-                    for strip in self.strips:
-                        for element in strip.getDataArray():
-                            if element.getDataType() == e_d.SOLAR_ROW:
-                                ytop, ybottom = [element.getYTop(), element.getYBottom()]
-                                # if self.rotation_point == None:
-                                #     plt.scatter(element.getXMidpoint(),ytop,c='r',alpha=0.9)
-                                #     plt.scatter(element.getXMidpoint(),ybottom,c='r',alpha=0.9)
-                                # else:
-                                #     tempplot1 = affinity.rotate(Point([element.getXMidpoint(), ytop]), -self.rotation, origin=self.rotation_point)
-                                #     tempplot2 = affinity.rotate(Point([element.getXMidpoint(), ybottom]), -self.rotation, origin=self.rotation_point)
-                                #     plt.scatter(*tempplot1.xy,c='r',alpha=0.9)
-                                #     plt.scatter(*tempplot2.xy,c='r',alpha=0.9)
+            # for cur_mmr in mmrs:
+            #     if cur_mmr == 'start':
+            #         #first loop
+            #         for strip in self.strips:
+            #             for element in strip.getDataArray():
+            #                 if element.getDataType() == e_d.SOLAR_ROW:
+            #                     ytop, ybottom = [element.getYTop(), element.getYBottom()]
+            #                     # if self.rotation_point == None:
+            #                     #     plt.scatter(element.getXMidpoint(),ytop,c='r',alpha=0.9)
+            #                     #     plt.scatter(element.getXMidpoint(),ybottom,c='r',alpha=0.9)
+            #                     # else:
+            #                     #     tempplot1 = affinity.rotate(Point([element.getXMidpoint(), ytop]), -self.rotation, origin=self.rotation_point)
+            #                     #     tempplot2 = affinity.rotate(Point([element.getXMidpoint(), ybottom]), -self.rotation, origin=self.rotation_point)
+            #                     #     plt.scatter(*tempplot1.xy,c='r',alpha=0.9)
+            #                     #     plt.scatter(*tempplot2.xy,c='r',alpha=0.9)
 
-                                xmid = element.getXMidpoint()
-                                point_list.append((xmid,ytop))
-                                point_list.append((xmid,ybottom))
+            #                     xmid = element.getXMidpoint()
+            #                     point_list.append((xmid,ytop))
+            #                     point_list.append((xmid,ybottom))
                     
-                    #generate mmr
-                    mrr = MultiPoint(point_list).minimum_rotated_rectangle
+            #         #generate mmr
+            #         mrr = MultiPoint(point_list).minimum_rotated_rectangle
                     
-                    #plot mmr
-                    # if self.rotation_point == None:
-                    #     plt.plot(*mrr.exterior.xy,'b',alpha=0.75)
-                    # else:
-                    #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
-                    #     plt.plot(*tempplot.exterior.xy,'b',alpha=0.75)
+            #         #plot mmr
+            #         # if self.rotation_point == None:
+            #         #     plt.plot(*mrr.exterior.xy,'b',alpha=0.75)
+            #         # else:
+            #         #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
+            #         #     plt.plot(*tempplot.exterior.xy,'b',alpha=0.75)
                     
-                    #split mmr on longest side
-                    sidecalc = []
-                    extcoords = list(mrr.exterior.coords)
-                    for i,_ in enumerate(extcoords[:-1]):
-                        midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
-                        sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
+            #         #split mmr on longest side
+            #         sidecalc = []
+            #         extcoords = list(mrr.exterior.coords)
+            #         for i,_ in enumerate(extcoords[:-1]):
+            #             midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
+            #             sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
                     
-                    #sort by length, then disregard the first two (these are the diagonals)
-                    sidecalc.sort(key=lambda x: x[0], reverse=True)
-                    print(sidecalc)
+            #         #sort by length, then disregard the first two (these are the diagonals)
+            #         sidecalc.sort(key=lambda x: x[0], reverse=True)
+            #         print(sidecalc)
                             
-                    #plot green and red dots for now. green = line to split
-                    # for i,x in enumerate(sidecalc):
-                    #     x = x[1]
-                    #     col = 'r' if i < 2 else 'g'
-                    #     if self.rotation_point == None:
-                    #         plt.scatter(x,ytop,c=col,alpha=0.9)
-                    #     else:
-                    #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
-                    #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
+            #         #plot green and red dots for now. green = line to split
+            #         # for i,x in enumerate(sidecalc):
+            #         #     x = x[1]
+            #         #     col = 'r' if i < 2 else 'g'
+            #         #     if self.rotation_point == None:
+            #         #         plt.scatter(x,ytop,c=col,alpha=0.9)
+            #         #     else:
+            #         #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
+            #         #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
                 
-                    #create line between 'green dots'
-                    spliceline_pointslist = []
-                    for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
-                    spliceline = LineString(spliceline_pointslist) #first two points
+            #         #create line between 'green dots'
+            #         spliceline_pointslist = []
+            #         for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
+            #         spliceline = LineString(spliceline_pointslist) #first two points
                     
-                    # if self.rotation_point == None:
-                    #     plt.scatter(*spliceline.xy,c='k',alpha=0.9,linewidths=5)
-                    # else:
-                    #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
-                    #     plt.scatter(*tempplot1.xy,c='k',alpha=0.9,linewidths=5)
+            #         # if self.rotation_point == None:
+            #         #     plt.scatter(*spliceline.xy,c='k',alpha=0.9,linewidths=5)
+            #         # else:
+            #         #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
+            #         #     plt.scatter(*tempplot1.xy,c='k',alpha=0.9,linewidths=5)
                     
-                    left,right = split(mrr,spliceline)
-                    for x in [left,right]:
-                        if self.rotation_point == None:
-                            plt.plot(*x.exterior.xy,'g',alpha=0.75)
-                        else:
-                            tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
-                            plt.plot(*tempplot.exterior.xy,'g',alpha=0.75)
+            #         left,right = split(mrr,spliceline)
+            #         for x in [left,right]:
+            #             if self.rotation_point == None:
+            #                 plt.plot(*x.exterior.xy,'g',alpha=0.75)
+            #             else:
+            #                 tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
+            #                 plt.plot(*tempplot.exterior.xy,'g',alpha=0.75)
                             
-                    mmrs.append(left)
-                    mmrs.append(right)
-                else:
-                    #second loop
-                    point_list = []
-                    del mrr
-                    del spliceline
-                    for strip in self.strips:
-                        for element in strip.getDataArray():
-                            if element.getDataType() == e_d.SOLAR_ROW:
-                                ytop, ybottom = [element.getYTop(), element.getYBottom()]
-                                xmid = element.getXMidpoint()
+            #         mmrs.append(left)
+            #         mmrs.append(right)
+            #     else:
+            #         #second loop
+            #         point_list = []
+            #         del mrr
+            #         del spliceline
+            #         for strip in self.strips:
+            #             for element in strip.getDataArray():
+            #                 if element.getDataType() == e_d.SOLAR_ROW:
+            #                     ytop, ybottom = [element.getYTop(), element.getYBottom()]
+            #                     xmid = element.getXMidpoint()
                                 
-                                point1 = Point((xmid,ytop))
-                                if cur_mmr.contains(point1) or cur_mmr.intersects(point1):
-                                    point_list.append(point1)
+            #                     point1 = Point((xmid,ytop))
+            #                     if cur_mmr.contains(point1) or cur_mmr.intersects(point1):
+            #                         point_list.append(point1)
                                 
-                                point2 = Point((xmid,ybottom))
-                                if cur_mmr.contains(point2) or cur_mmr.intersects(point2):
-                                    point_list.append(point2)
+            #                     point2 = Point((xmid,ybottom))
+            #                     if cur_mmr.contains(point2) or cur_mmr.intersects(point2):
+            #                         point_list.append(point2)
                                 
-                    #generate mmr
-                    mrr = MultiPoint(point_list).minimum_rotated_rectangle
+            #         #generate mmr
+            #         mrr = MultiPoint(point_list).minimum_rotated_rectangle
                     
-                    # #plot mmr
-                    # if self.rotation_point == None:
-                    #     plt.plot(*mrr.exterior.xy,'k',alpha=0.75, linewidth=2)
-                    # else:
-                    #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
-                    #     plt.plot(*tempplot.exterior.xy,'k',alpha=0.75, linewidth=2)
+            #         # #plot mmr
+            #         # if self.rotation_point == None:
+            #         #     plt.plot(*mrr.exterior.xy,'k',alpha=0.75, linewidth=2)
+            #         # else:
+            #         #     tempplot = affinity.rotate(mrr, -self.rotation, origin=self.rotation_point)
+            #         #     plt.plot(*tempplot.exterior.xy,'k',alpha=0.75, linewidth=2)
                     
-                    #split mmr on longest side
-                    sidecalc = []
-                    extcoords = list(mrr.exterior.coords)
-                    for i,_ in enumerate(extcoords[:-1]):
-                        midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
-                        sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
+            #         #split mmr on longest side
+            #         sidecalc = []
+            #         extcoords = list(mrr.exterior.coords)
+            #         for i,_ in enumerate(extcoords[:-1]):
+            #             midpoint = LineString([extcoords[i],extcoords[i+1]]).interpolate(0.5, normalized=True)
+            #             sidecalc.append([LineString([extcoords[i],extcoords[i+1]]).length,midpoint])
                     
-                    #sort by length, then disregard the first two (these are the diagonals)
-                    sidecalc.sort(key=lambda x: x[0], reverse=True)
-                    print(sidecalc)
+            #         #sort by length, then disregard the first two (these are the diagonals)
+            #         sidecalc.sort(key=lambda x: x[0], reverse=True)
+            #         print(sidecalc)
                             
-                    #plot green and red dots for now. green = line to split
-                    # for i,x in enumerate(sidecalc):
-                    #     x = x[1]
-                    #     col = 'r' if i < 2 else 'g'
-                    #     if self.rotation_point == None:
-                    #         plt.scatter(x,ytop,c=col,alpha=0.9)
-                    #     else:
-                    #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
-                    #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
+            #         #plot green and red dots for now. green = line to split
+            #         # for i,x in enumerate(sidecalc):
+            #         #     x = x[1]
+            #         #     col = 'r' if i < 2 else 'g'
+            #         #     if self.rotation_point == None:
+            #         #         plt.scatter(x,ytop,c=col,alpha=0.9)
+            #         #     else:
+            #         #         tempplot1 = affinity.rotate(Point(x), -self.rotation, origin=self.rotation_point)
+            #         #         plt.scatter(*tempplot1.xy,c=col,alpha=0.9)
                 
                     
                 
-                    #create line between 'green dots'
-                    spliceline_pointslist = []
-                    for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
-                    spliceline = LineString(spliceline_pointslist) #first two points                  
+            #         #create line between 'green dots'
+            #         spliceline_pointslist = []
+            #         for x in sidecalc[0:2]: spliceline_pointslist.append(x[1])
+            #         spliceline = LineString(spliceline_pointslist) #first two points                  
 
-                    # if self.rotation_point == None:
-                    #     plt.scatter(*spliceline.xy,c='b',alpha=0.9,linewidths=0.5)
-                    # else:
-                    #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
-                    #     plt.scatter(*tempplot1.xy,c='b',alpha=0.9,linewidths=0.5)
+            #         # if self.rotation_point == None:
+            #         #     plt.scatter(*spliceline.xy,c='b',alpha=0.9,linewidths=0.5)
+            #         # else:
+            #         #     tempplot1 = affinity.rotate(spliceline, -self.rotation, origin=self.rotation_point)
+            #         #     plt.scatter(*tempplot1.xy,c='b',alpha=0.9,linewidths=0.5)
                     
-                    plt.savefig(r"C:\Users\Damien.Vermeer\Desktop\zLINKS\TEMP\sflayout"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=600)                 
-                    results = split(mrr,snap(spliceline,mrr,0.1))
-                    for x in list(results):
-                        if self.rotation_point == None:
-                            plt.plot(*x.exterior.xy,alpha=0.75, linewidth=1)
-                        else:
-                            tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
-                            plt.plot(*tempplot.exterior.xy,alpha=0.75, linewidth=1)
+            #         plt.savefig(r"C:\Users\Damien.Vermeer\Desktop\zLINKS\TEMP\sflayout"+"\\"+str(id)+str(filesuffix)+".png", bbox_inches='tight', dpi=600)                 
+            #         results = split(mrr,snap(spliceline,mrr,0.1))
+            #         for x in list(results):
+            #             if self.rotation_point == None:
+            #                 plt.plot(*x.exterior.xy,alpha=0.75, linewidth=1)
+            #             else:
+            #                 tempplot = affinity.rotate(x, -self.rotation, origin=self.rotation_point)
+            #                 plt.plot(*tempplot.exterior.xy,alpha=0.75, linewidth=1)
                             
-                    mmrs.append(results[0])
-                    mmrs.append(results[1])
-                    loopnum += 1
-                    if loopnum == 6: break
+            #         mmrs.append(results[0])
+            #         mmrs.append(results[1])
+            #         loopnum += 1
+            #         if loopnum == 6: break
 
                     
                     
@@ -617,10 +623,10 @@ class Farm:
                         #        plt.scatter(*tempplot.xy,c='y',alpha=0.9)
         # #debug
         # coords = self.getBoundaryToLine(self.getBoundaryPoly(), self.polygon.centroid.xy[1][0])
-        # temp_poly = LineString(coords).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
+        # temp_poly = LineString(coords).buffer(self.settings['roads/internal/clearwidth']/2, resolution=32, join_style=2)
         # plt.plot(*temp_poly.exterior.xy ,c='purple',alpha=0.9)
-        # # temp_poly = LineString(coords).buffer(c.SR_ROADWAY_WIDTH/2, resolution=32, join_style=2)
-        # # yoffset = 2*max(c.SR_ROW_LENGTHS)+c.SR_END_END_WIDTH+c.SR_ROADWAY_WIDTH
+        # # temp_poly = LineString(coords).buffer(self.settings['roads/internal/clearwidth']/2, resolution=32, join_style=2)
+        # # yoffset = 2*max(self.settings['row/lengths'])+self.settings['layout/endrowspace']+self.settings['roads/internal/clearwidth']
         # # plt.plot(*affinity.translate(temp_poly, xoff=0, yoff=yoffset).exterior.xy,'purple',linestyle='dashed')
 
         # #plot roads
@@ -640,12 +646,12 @@ class Farm:
         #plot boundary
         if self.rotation_point == None:
             plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
-            plt.plot(*self.pre_setback_polygon.exterior.xy,'k',linestyle='dashed')
+            if self.pre_setback_polygon is not None: plt.plot(*self.pre_setback_polygon.exterior.xy,'k',linestyle='dashed')
         else:
             tempplot1 = affinity.rotate(self.polygon, -self.rotation, origin=self.rotation_point)
             plt.plot(*tempplot1.exterior.xy,'k',linestyle='dashed')
-            tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
-            plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
+            if self.pre_setback_polygon is not None: tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
+            if self.pre_setback_polygon is not None: plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
         
         plt.title("ID # " + str(id) + " - PaF = " + str(round(self.getPaF()*100,2)) + "%")
         plt.gca().set_aspect('equal', adjustable='box')
@@ -694,10 +700,10 @@ class Farm:
             stripsiter = self.strips
 
         #step 1 - process and add road POI markers
-        # print("--|road layout starting") if c.VERBOSE == True else False
+        # print("--|road layout starting") if self.settings['debug'] == True else False
 
         # if method == 'numlongrows':
-        #     print("--|road layout method numlongrows") if c.VERBOSE == True else False
+        #     print("--|road layout method numlongrows") if self.settings['debug'] == True else False
         #     #add a POI road marker every 2nd long row
         #     for strip in stripsiter:
         #         counter = 0
@@ -709,7 +715,7 @@ class Farm:
         #         for element in dataarray:
         #             if element.getDataType() == e_d.SOLAR_ROW:
         #                 #this is a solar row
-        #                 if element.getNumberModules() == max(c.SR_NUM_MODULES_PER_ROW):
+        #                 if element.getNumberModules() == max(self.settings['row/nmodules']):
         #                     #this is a (max) long row
         #                     counter += 1
         #                     if counter == parameter:
@@ -728,7 +734,7 @@ class Farm:
         #     raise ValueError("addRoads not given valid method")
 
         #step 2 - check there are no POI  road nodes on the end of the stip list
-        # print("--|cleaning up excess road markers") if c.VERBOSE == True else False
+        # print("--|cleaning up excess road markers") if self.settings['debug'] == True else False
         # for strip in stripsiter:
         #     dataarray = strip.getDataArray()
 
@@ -745,14 +751,14 @@ class Farm:
                                                         
         #once we get to here, we have road markers everywhere
         #step 3 - get road poi nodes within some delta (NEW_ROAD_DELTA)
-        print("--|connecting road nodes") if c.VERBOSE == True else False
+        print("--|connecting road nodes") if self.settings['debug'] == True else False
         for strip in stripsiter:
             poly = strip.getIntersectionPoly()
             for rp in strip.getDataArray():
                 if rp.getDataType() == e_p.ROAD_NODE and not rp.getProcessedFlag():
                     if rp.handler == None:
                         #create new road - defaults to radial road
-                        new_mph = MultiPointHandler.MultiPointHandler()
+                        new_mph = MultiPointHandler.MultiPointHandler(settings=self.settings)
                         new_mph.addCoord([rp.getX(),rp.getYTop()])
                         rp.handler = new_mph
                         self.mphs.append(new_mph)
@@ -774,8 +780,8 @@ class Farm:
 
                             #calculate acceptable offset
                             nmod = neigiter.getDataArray()[i-1].getNumberModules()
-                            prlength = c.ROAD_Y_DELTA*c.SR_ROW_LENGTHS[c.SR_NUM_MODULES_PER_ROW.index(nmod)]
-                            compdist = np.sqrt(np.power(c.SR_POST_POST_WIDTH,2)+np.power(prlength,2))
+                            prlength = self.settings['roads/internal/sep/ydelta']*self.settings['row/lengths'][self.settings['row/nmodules'].index(nmod)]
+                            compdist = np.sqrt(np.power(self.settings['layout/post2post'],2)+np.power(prlength,2))
 
                             #check for minimum angle
                             curr_angle = math.degrees(math.atan2(deltay,deltax))
@@ -786,7 +792,7 @@ class Farm:
 
                             #find min distance rp
                             if dist <= compdist:
-                                if np.abs(prev_angle-curr_angle) < c.MAX_ROAD_DELTA_ANGLE:
+                                if np.abs(prev_angle-curr_angle) < self.settings['roads/internal/deltangle']:
                                     if dist < mindist:
                                         mindist = dist
                                         mindistrp = test_rp
@@ -804,13 +810,13 @@ class Farm:
 
                         
         #step 4a - clean roads for extrapolation
-        print("--|cleaning before extrapolation") if c.VERBOSE == True else False
+        print("--|cleaning before extrapolation") if self.settings['debug'] == True else False
         remove_list = []
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
                 if i.getNumCoords() >= 2:
                     i.removeSpikes()    #remove spikes
-                    if i.getMaxSlope() > c.MAX_ROAD_DELTA_ANGLE:
+                    if i.getMaxSlope() > self.settings['roads/internal/deltangle']:
                         remove_list.append(i)   #road is too steep in section
                     #else is valid
                 else:
@@ -820,7 +826,7 @@ class Farm:
             self.mphs.remove(delete) 
 
         #step 4b - perform extrapolation
-        print("--|road layout extrapolating") if c.VERBOSE == True else False
+        print("--|road layout extrapolating") if self.settings['debug'] == True else False
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
                 
@@ -834,13 +840,13 @@ class Farm:
                 i.addCoord([self.polygon.bounds[2], yval])
 
         #step 5 - create road polygons
-        print("--|road layout creating road polys") if c.VERBOSE == True else False 
+        print("--|road layout creating road polys") if self.settings['debug'] == True else False 
         remove_list = []
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
                 if i.getNumCoords() >= 2:
                     i.removeSpikes()    #else will fail slope test normally 
-                    if not i.getMaxSlope() > c.MAX_ROAD_DELTA_ANGLE:
+                    if not i.getMaxSlope() > self.settings['roads/internal/deltangle']:
                         i.updatePoly()
                     else:
                         remove_list.append(i)
@@ -851,7 +857,7 @@ class Farm:
             self.mphs.remove(delete)
   
         #step 6 - offset roads TODO fix this so it works
-        print("--|road layout offsetting roads & moving solar rows") if c.VERBOSE == True else False
+        print("--|road layout offsetting roads & moving solar rows") if self.settings['debug'] == True else False
         maxyshift = 0
         #first pass - determine max y shift
         for i in self.mphs:
@@ -878,7 +884,7 @@ class Farm:
                         cross = strip.getIntersectionPoly().intersection(i.getPolygon())
                         yshiftcoord = cross.bounds[1] #min y of the intersection
                         #shift everything in strip data array u[]
-                        strip.processRoadShift(strip.getIntersectionPoly(), yshiftcoord, strip.anchor, maxyshift - c.SR_END_END_WIDTH)
+                        strip.processRoadShift(strip.getIntersectionPoly(), yshiftcoord, strip.anchor, maxyshift - self.settings['layout/endrowspace'])
                 
                 #process each road
                 for road in self.mphs:
@@ -888,7 +894,7 @@ class Farm:
                         else:
                             if road.getPolygon().centroid.xy[1] > i.getPolygon().centroid.xy[1]:
                                 #check if road vertically above TODO fix this properly (look at strips etc)
-                                road.shift(0,maxyshift - c.SR_END_END_WIDTH)
+                                road.shift(0,maxyshift - self.settings['layout/endrowspace'])
 
         #step 7 - delete out of bounds stuff
         remove_list = []
@@ -907,7 +913,7 @@ class Farm:
                         if not self.polygon.contains(rp.getCoordsAsPoint()):
                             strip.removeFromDataArray(rp)
 
-        print("--|road layout done") if c.VERBOSE == True else False
+        print("--|road layout done") if self.settings['debug'] == True else False
         
 
     # def getBoundaryToLine(self, polygonin, y, mode='below'):
@@ -949,15 +955,15 @@ class Farm:
             
     #     #     # check if too steep (angle > median + delta)
     #     #     curr_slope = math.degrees(math.atan2(deltay,deltax))
-    #     #     max_slope = median_slope + c.MAX_ROAD_DELTA_ANGLE
-    #     #     min_slope = median_slope - c.MAX_ROAD_DELTA_ANGLE
+    #     #     max_slope = median_slope + self.settings['roads/internal/deltangle']
+    #     #     min_slope = median_slope - self.settings['roads/internal/deltangle']
     #     #     # print("current angle = " + str(curr_slope))
     #     #     # print("max_slope = " + str(max_slope))
     #     #     # print("min_slope = " + str(min_slope))
     #     #     if curr_slope > max_slope or curr_slope < min_slope:
-    #     #         print("changing y from = "+str(return_points[i-1][1])+"to = " + str(return_points[i-1][1] - (deltax * np.tan(np.deg2rad(c.MAX_ROAD_DELTA_ANGLE)))))
+    #     #         print("changing y from = "+str(return_points[i-1][1])+"to = " + str(return_points[i-1][1] - (deltax * np.tan(np.deg2rad(self.settings['roads/internal/deltangle'])))))
     #     #         #too steep, assume X is fixed and change y
-    #     #         return_points[i-1] = [return_points[i-1][0], return_points[i-1][1] - (deltax * np.tan(np.deg2rad(c.MAX_ROAD_DELTA_ANGLE)))]
+    #     #         return_points[i-1] = [return_points[i-1][0], return_points[i-1][1] - (deltax * np.tan(np.deg2rad(self.settings['roads/internal/deltangle'])))]
     #     #     # print("--")
     #     #     x=0
         
@@ -987,7 +993,7 @@ class Farm:
 
 
     def processRoads(self, stripsin, id, mph_in):
-        print("--|get list of all road nodes with correct id") if c.VERBOSE == True else False
+        print("--|get list of all road nodes with correct id") if self.settings['debug'] == True else False
         
         #get list of road pois
         road_point_list = []
@@ -1013,8 +1019,8 @@ class Farm:
                 curr_angle = math.degrees(math.atan2(delta_y_curr,delta_x_curr))
                 prev_angle = math.degrees(math.atan2(delta_y_prev,delta_x_prev))
             
-                max_allowed_angle = prev_angle + c.MAX_ROAD_DELTA_ANGLE
-                min_allowed_angle = prev_angle - c.MAX_ROAD_DELTA_ANGLE
+                max_allowed_angle = prev_angle + self.settings['roads/internal/deltangle']
+                min_allowed_angle = prev_angle - self.settings['roads/internal/deltangle']
 
                 #if too steep, change y
                 if curr_angle > max_allowed_angle or curr_angle < min_allowed_angle:
@@ -1026,13 +1032,13 @@ class Farm:
                 rp.setAsProcessed()
 
 
-        print("--|road layout done") if c.VERBOSE == True else False
+        print("--|road layout done") if self.settings['debug'] == True else False
         
 
         
     #step 4b - perform extrapolation
     def extrapolateRoads(self):
-        print("--|road layout extrapolating") if c.VERBOSE == True else False
+        print("--|road layout extrapolating") if self.settings['debug'] == True else False
         for i in self.mphs:
             if i.getDataType() == e.MultiPointDataTypes.RADIAL_ROAD:
                 #use np to polyfit
@@ -1048,7 +1054,8 @@ class Farm:
 
     def getPaF(self):
         #returns the packing factor (array area / total area)
-        array_area = self.getModuleNumber()*c.SR_MODULE_HEIGHT
+        array_area = self.getModuleNumber()*self.settings['module/height']
         total_area = self.polygon.area
 
         return array_area/total_area
+
