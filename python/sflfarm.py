@@ -27,10 +27,6 @@ class Farm:
         self.rotation = 0
         self.mphs = []
         self.next_road_id = 0
-
-    def getDefaultSettings(self):
-        return copy.deepcopy(default_settings)
-
     def scaleFarmBoundary(self, scale):
         self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
 
@@ -51,6 +47,18 @@ class Farm:
         else:
             self.processRoadOnBoundary(setback)
             return True
+
+    def deleteDuplicates(self):   
+        #temporary workaround - the layout shouldnt create dupes anyway! 
+        for strip in self.strips:
+            for element in strip.getDataArray():
+                if element.getDataType() == e_d.SOLAR_ROW:
+                    for elm in strip.getDataArray():
+                        if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
+                            intersect = not elm.getPoly().intersection(element.getPoly()).is_empty
+                            if intersect: #means a duplicate
+                                strip.removeFromDataArray(elm)        
+
 
     def processRoadOnBoundary(self, setback):
         ls_boundary = self.polygon.boundary.parallel_offset(setback/2, 'left')
@@ -79,6 +87,7 @@ class Farm:
         print("--|strip generator starting") if self.settings['debug'] == True else False
 
         #calc polygon data
+        if len(self.polygon.bounds) < 2: return
         poly_width = self.polygon.bounds[2] - self.polygon.bounds[0]
         poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
 
@@ -109,7 +118,7 @@ class Farm:
             except Exception:
                 pass
 
-            if strip_intersection.is_empty:
+            if strip_intersection is None or strip_intersection.is_empty:
                 continue
             
             if strip_intersection.geom_type == "MultiPolygon":
@@ -145,7 +154,8 @@ class Farm:
 
         #check we have some strips to work on
         if len(self.strips) < 1:
-            raise ValueError("!!! Fatal error - Cannot populate solar rows with no strips")
+            return
+            # raise ValueError("!!! Fatal error - Cannot populate solar rows with no strips")
         
 
         firstpass = True
@@ -161,8 +171,8 @@ class Farm:
                 print("--|processing strip " + str(stripcount+1) +"/"+str(len(self.strips))) if stripcount % 10 == 0 and self.settings['debug'] == True else False 
 
                 #check if polygon area is less than smallest row area, continue
-                if self.settings['layout/post2post']*min(self.settings['row/lengths']) > strip.getIntersectionPoly().area:
-                    continue #too small to fit anything in
+                # if self.settings['layout/post2post']*min(self.settings['row/lengths']) > strip.getIntersectionPoly().area:
+                #     continue #too small to fit anything in
 
                 #draw solar row, returns True if need to put a road node down
                 if strip.recalc or firstpass:
@@ -219,7 +229,7 @@ class Farm:
                 #then calculate strips again based on strips
                 for strip in self.strips:
                     strip_intersection = strip.getIntersectionPoly().intersection(self.mphs[-1].getPolygon())
-                    if strip_intersection.is_empty:
+                    if strip_intersection is None or strip_intersection.is_empty:
                         continue
                     else:
                         #remove everything with y above this element
@@ -437,7 +447,11 @@ class Farm:
                                     if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
                                         plot = not elm.getPoly().intersection(element.getPoly()).is_empty
                             if plot:
-                                plt.plot(*element.getPoly().exterior.xy,'r',alpha=1)
+                                if self.rotation_point == None:
+                                    plt.plot(*element.getPoly().exterior.xy,'r',alpha=1)
+                                else:
+                                    tempplot = affinity.rotate(element.getPoly(), -self.rotation, origin=self.rotation_point)
+                                    plt.plot(*tempplot.exterior.xy,'r',alpha=1)
                      
                     for element in strip.getDataArray():
 
@@ -630,16 +644,16 @@ class Farm:
         # # plt.plot(*affinity.translate(temp_poly, xoff=0, yoff=yoffset).exterior.xy,'purple',linestyle='dashed')
 
         # #plot roads
-        # for mph in self.mphs:
-        #     if self.rotation_point == None:
-        #         plt.plot(*mph.getPolygon().exterior.xy,'y',linestyle='dashed')
-        #         for interior in mph.getPolygon().interiors:
-        #             plt.plot(*interior.xy,'y',linestyle='dashed')
-        #     else:
-        #         tempplot = affinity.rotate(mph.getPolygon(), -self.rotation, origin=self.rotation_point)
-        #         plt.plot(*tempplot.exterior.xy,'y',linestyle='dashed')
-        #         for interior in tempplot.interiors:
-        #             plt.plot(*interior.xy,'y',linestyle='dashed')
+        for mph in self.mphs:
+            if self.rotation_point == None:
+                plt.plot(*mph.getPolygon().exterior.xy,'y',linestyle='dashed')
+                for interior in mph.getPolygon().interiors:
+                    plt.plot(*interior.xy,'y',linestyle='dashed')
+            else:
+                tempplot = affinity.rotate(mph.getPolygon(), -self.rotation, origin=self.rotation_point)
+                plt.plot(*tempplot.exterior.xy,'y',linestyle='dashed')
+                for interior in tempplot.interiors:
+                    plt.plot(*interior.xy,'y',linestyle='dashed')
 
             
                         
@@ -655,7 +669,7 @@ class Farm:
         
         plt.title("ID # " + str(id) + " - PaF = " + str(round(self.getPaF()*100,2)) + "%")
         plt.gca().set_aspect('equal', adjustable='box')
-        axes = plt.gca()
+        # axes = plt.gca()
         # axes.set_xlim([self.pre_setback_polygon.bounds[0]*1.3,self.pre_setback_polygon.bounds[2]*1.1])
         # axes.set_ylim([self.pre_setback_polygon.bounds[1]*1.3,self.pre_setback_polygon.bounds[3]*1.1])
         # plt.show()
