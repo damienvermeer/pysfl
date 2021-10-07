@@ -54,3 +54,22 @@ sf_settings['output/directory'] = r"C:\Users\verme\Desktop\zTEMP" #directory to 
 #use the 'generate' task using the target flag
 sf_generator.applySettings(sf_settings)
 best_layout = sf_generator.generate(target='n_modules') #n_modules will search for the highest number of modules
+
+
+
+
+
+# TODO incorporate
+# for each point on boundary in small steps s_cur & s_next
+# 	for vertical offset in 0 to max_height_sf:
+# 		aspect ratio = 2 to 0.5 in steps of somethimg
+# 		draw rectangle:
+# 			- from s_curr towards s_next of leng
+# 			- length is aspect ratio relative to area
+# 		if rectange intsects boundary = continue
+# 		if rectangle is completely outside boundary: break
+# 		else:
+# 			for each row which intersects the rectangle
+# 				while can reduce length - reduce & recheck
+			
+# 			store number removed + rectangle in results
