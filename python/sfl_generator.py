@@ -41,14 +41,14 @@ class SFL_Generator():
             if self.settings['general/row/setback/steps'] == 1:
                 #just apply
                 for x in settings_to_run:
-                    x['general/row/setback'] = self.settings['general/row/setback'][0]
+                    x['general/row/setback/target'] = self.settings['general/row/setback'][0]
             else:
                 #need to apply them
                 for working_settings in copy.copy(settings_to_run):
                     _ = working_settings['general/row/setback']
                     for x in np.linspace(min(_), max(_),self.settings['general/row/setback/steps']):
                         new_settings = copy.deepcopy(working_settings)
-                        new_settings['general/row/setback'] = x
+                        new_settings['general/row/setback/target'] = x
                         settings_to_run.append(new_settings)
                 
         if self.settings['layout/align'] == 'auto':
@@ -75,9 +75,9 @@ class SFL_Generator():
             #minimise memory - only store if better than previous
             if sf.getModuleNumber() > min_modules:
                 min_modules = sf.getModuleNumber()
-                results.append([sf.getModuleNumber(), sf])
-            else:
-                del sf
+            
+            #store result
+            results.append([sf.getModuleNumber(), sf])
             
             #display progress
             percent_complete = (i+1)/len(settings_to_run)*100
@@ -86,10 +86,14 @@ class SFL_Generator():
         
         #sort and plot top 3, or if less than 3 just plot the top
         results_sorted = sorted(results, key=lambda x: x[0], reverse=True)
-        plot_results = results_sorted[0:3] if len(results_sorted) > 3 else results_sorted
+        if e['plot/best'] != -1:
+            plot_results = results_sorted[0:e['plot/best']] if len(results_sorted) > e['plot/best'] else results_sorted
+        else:
+            plot_results = results_sorted #not actually sorted but doesnt matter 
+        
         for ix,plot_sf in enumerate(plot_results):
             nmodules,plot_sf_inst = plot_sf
             for i,e in enumerate(results): 
                 if e[1] is plot_sf_inst: plot_sf_inst.plotFarm(f"Result #{ix} - Run #{i} - Nmodule = {nmodules}", plot_strips=False, plot_strip_ints=False)
-                
+
         print(str(results_sorted[0][1].settings))

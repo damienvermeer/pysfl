@@ -98,8 +98,10 @@ class Farm:
         #iterate over strips creating each of them
         print("--|creating strips") if self.settings['debug'] == True else False
         # print(np.linspace(self.polygon.bounds[0], num_strips*self.settings['layout/post2post'], num=num_strips))
-
+        
         x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
+        if 'general/row/setback/target' in self.settings:
+            x_min += self.settings['general/row/setback/target']
 
         while True:
             #generate strip polygon

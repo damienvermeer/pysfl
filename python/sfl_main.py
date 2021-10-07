@@ -5,6 +5,8 @@ from sfl_generator import SFL_Generator
 
 #firstly define the polygon to use for the solar farm layout
 new_boundary = [(0,0),(750,156),(1537,894),(1609,1685),(1205,2105),(811,1129),(241,906)]
+scale = 0.2
+new_boundary = [(x[0]*scale,x[1]*scale) for x in new_boundary]
 
 #create a generator 
 sf_generator = SFL_Generator(new_boundary)
@@ -15,10 +17,10 @@ sf_settings = sf_generator.getSettings()
 #set options as desired
 sf_settings['general/azimuth/target'] = 0 #0 deg typically for single axis tracking, 90deg for fixed tilt
 sf_settings['general/azimuth/tolerance'] = [-10, 10] #list of tolerance to consider away from true N (sat) or E (ft)
-sf_settings['general/azimuth/tolerance/steps'] = 20 #number of steps to iterate over for azimuth
+sf_settings['general/azimuth/tolerance/steps'] = 0 #number of steps to iterate over for azimuth
 sf_settings['general/global/setback'] = 10 #in m, if non-zero, boundary (set-back) area between boundary and solar farm area
-sf_settings['general/row/setback'] = [0.1, 0.1]  #in m, min and maxset-back from edge of farm boundary for first rows
-sf_settings['general/row/setback/steps'] = 1 #number of steps to iterate over for azimuth
+sf_settings['general/row/setback'] = [0, 3]  #in m, min and maxset-back from edge of farm boundary for first rows
+sf_settings['general/row/setback/steps'] = 3 #number of steps to iterate over for setback
 
 sf_settings['module/height'] = 2 #height of the solar module used in m
 sf_settings['module/stc'] = 500 #output power of the module selected in watts
@@ -28,7 +30,7 @@ sf_settings['row/nmodules'] = [84, 56, 28] #list of modules per row in m
 
 sf_settings['layout/post2post'] = 6 #width between posts for solar farm rows
 sf_settings['layout/endrowspace'] = 0.5 #spacing between ends of rows
-sf_settings['layout/align'] = 'auto' #'auto' test both, 'bottom' = align with rotated azimuth of 0deg. 'top' align with rotated azimuth of 180deg
+sf_settings['layout/align'] = 'bottom' #'auto' test both, 'bottom' = align with rotated azimuth of 0deg. 'top' align with rotated azimuth of 180deg
 
 sf_settings['roads/perimeter'] = True #true for perimeter road, False to not include perimeter road
 sf_settings['roads/clearwidth'] = 8 #roadway width (not road width) between rows
@@ -42,9 +44,11 @@ sf_settings['roads/internal/sep/road2rows'] = 1  #additional offset between top 
 sf_settings['roads/internal/sep/ydelta'] = 1  #unknown to test?
 sf_settings['roads/internal/spikemin'] = 10  #unknown to test?
 
+sf_settings['plot/best'] = -1  #top XX to plot, or -1 to plot all
+
 sf_settings['debug'] = False #True to display debug output
 
-sf_settings['output/directory'] = r"C:\Users\Damien\Desktop\solar output" #directory to output
+sf_settings['output/directory'] = r"C:\Users\verme\Desktop\zTEMP" #directory to output
 
 
 #use the 'generate' task using the target flag
