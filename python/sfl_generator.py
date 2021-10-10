@@ -4,6 +4,7 @@ import numpy as np
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
 import os
+
 class SFL_Generator():
     
     def __init__(self, poly):
@@ -63,9 +64,10 @@ class SFL_Generator():
         min_modules = 0
         for i,e in enumerate(settings_to_run):
             sf = Farm(self.poly, settings=e)
-            if i == 0: sf.plotFarm('original', plot_strips=False, plot_strip_ints=False, plot_sf_rows=False, filesuffix="orig")
-            sf.moveCentroidToOrigin()
-            sf.setAzimuth(e['general/azimuth/target'])
+            # sf.scaleFarmBoundary(0.1)
+            # if i == 0: sf.plotFarm('original', plot_strips=False, plot_strip_ints=False, plot_sf_rows=False, filesuffix="orig")
+            # sf.moveCentroidToOrigin()
+            # sf.setAzimuth(e['general/azimuth/target'])
             if e['general/global/setback'] > 0: sf.setbackFarmBoundary(e['general/global/setback'])
             sf.createStrips()
             sf.populateAllSolarRows()
@@ -81,7 +83,6 @@ class SFL_Generator():
             
             #display progress
             percent_complete = (i+1)/len(settings_to_run)*100
-            os.system('cls' if os.name=='nt' else 'clear')
             print(f'Complete {percent_complete:.2f}% (Completed {i+1} of {len(settings_to_run)})')
         
         #sort and plot top 3, or if less than 3 just plot the top
@@ -89,11 +90,13 @@ class SFL_Generator():
         if e['plot/best'] != -1:
             plot_results = results_sorted[0:e['plot/best']] if len(results_sorted) > e['plot/best'] else results_sorted
         else:
-            plot_results = results_sorted #not actually sorted but doesnt matter 
+            plot_results = results_sorted
         
         for ix,plot_sf in enumerate(plot_results):
             nmodules,plot_sf_inst = plot_sf
             for i,e in enumerate(results): 
-                if e[1] is plot_sf_inst: plot_sf_inst.plotFarm(f"Result #{ix} - Run #{i} - Nmodule = {nmodules}", plot_strips=False, plot_strip_ints=False)
+                if e[1] is plot_sf_inst: plot_sf_inst.plotFarm(self.settings['plot/filename'], plot_strips=False, plot_strip_ints=False)
 
-        print(str(results_sorted[0][1].settings))
+        # print(str(results_sorted[0][1].settings))
+
+        return results_sorted[0][1] 

@@ -669,7 +669,11 @@ class Farm:
             if self.pre_setback_polygon is not None: tempplot2 = affinity.rotate(self.pre_setback_polygon, -self.rotation, origin=self.rotation_point)
             if self.pre_setback_polygon is not None: plt.plot(*tempplot2.exterior.xy,'k',linestyle='dashed')
         
-        plt.title("ID # " + str(id) + " - PaF = " + str(round(self.getPaF()*100,2)) + "%")
+        if self.settings['plot/title'] == '':
+            plt.title("ID # " + str(id) + " - F3 = " + str(round(self.getF3()*100,2)) + "%")
+        else:
+            plt.title(self.settings['plot/title'])
+        
         plt.gca().set_aspect('equal', adjustable='box')
         # axes = plt.gca()
         # axes.set_xlim([self.pre_setback_polygon.bounds[0]*1.3,self.pre_setback_polygon.bounds[2]*1.1])
@@ -705,6 +709,14 @@ class Farm:
 
     def getMBBRatio(self):
         return self.polygon.area / self.polygon.minimum_rotated_rectangle.area
+
+    def getAspectRatio(self):
+        x, y = self.polygon.minimum_rotated_rectangle.exterior.xy
+        # get length of bounding box edges
+        edge_length = (Point(x[0], y[0]).distance(Point(x[1], y[1])), Point(x[1], y[1]).distance(Point(x[2], y[2])))
+        length = max(edge_length)
+        width = min(edge_length)
+        return length/width
 
     def addRoads(self, method='numlongrows', parameter=2, reverse=False):
         
@@ -1068,10 +1080,10 @@ class Farm:
                     yval = i.extrapolate(length-2,length-1,self.polygon.bounds[2])
                     i.addCoord([self.polygon.bounds[2], yval])   
 
-    def getPaF(self):
-        #returns the packing factor (array area / total area)
-        array_area = self.getModuleNumber()*self.settings['module/height']
+    def getF3(self):
+        #returns the factility fill factor (F3)
+        #the ratio of module area to area
+        array_area = self.getModuleNumber()*self.settings['module/height']*self.settings['module/width']
         total_area = self.polygon.area
-
         return array_area/total_area
 

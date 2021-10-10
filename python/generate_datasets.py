@@ -9,6 +9,7 @@ import numpy as np
 import os
 import pickle
 from pathlib import Path
+import random
 
 SHAPEFILE_PATH = r"C:\Users\verme\Desktop\SDM773066\solar\parcel_mp.dbf"
 DBF_SCALE = 10e3
@@ -16,9 +17,11 @@ TOLERANCE = 0.1
 MIN_AREA = 157e3 #approx 10MWDC
 MAX_AREA = 2355e3 #approx 150MWDC
 MAX_ASPECT_RATIO = 3.0 #3:1 for length to width
-OFFSET = 10e3
+OFFSET = 0
 SKIP_EVERY = 5
 MIN_MBBA_RATIO = 0.1
+NUM_DATAPOINTS = 100
+SEED = 0
 
 #load DBF file
 sf = shapefile.Reader(SHAPEFILE_PATH)
@@ -30,13 +33,15 @@ shapefileid = 0
 raw_data = []
 output_data = []
 errors = []
-n_datapoints = 5000
 output_file = r"C:\Users\verme\Desktop\outputdataset.shape"
 output_plot = r"C:\Users\verme\Desktop\outputplot.png"
 
 #area scaling
-area_scale = list(np.linspace(MIN_AREA,MAX_AREA,n_datapoints+1))
-rotation_target = list(np.linspace(0,360,n_datapoints+1))
+area_scale = list(np.linspace(MIN_AREA,MAX_AREA,NUM_DATAPOINTS+1))
+rotation_target = list(np.linspace(0,360,NUM_DATAPOINTS+1))
+
+random.Random(SEED).shuffle(area_scale)
+random.Random(SEED).shuffle(rotation_target)
 
 for shape in sf.iterShapes():
 
@@ -51,7 +56,7 @@ for shape in sf.iterShapes():
     print(f"# of polygons stored {len(raw_data)}")
 
     #check to see if we should stop
-    if len(raw_data) > n_datapoints-1:
+    if len(raw_data) > NUM_DATAPOINTS-1:
         break
     
     #prevent errors
@@ -70,6 +75,9 @@ for shape in sf.iterShapes():
 
         #check MBBR
         if newpoly.area/newpoly.minimum_rotated_rectangle.area < MIN_MBBA_RATIO: continue
+
+        #check for valid
+        if not newpoly.is_valid:continue
 
 
         #check if similar poly already stored
