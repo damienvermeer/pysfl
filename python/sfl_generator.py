@@ -64,10 +64,10 @@ class SFL_Generator():
         min_modules = 0
         for i,e in enumerate(settings_to_run):
             sf = Farm(self.poly, settings=e)
-            # sf.scaleFarmBoundary(0.1)
+            sf.scaleFarmBoundary(0.5)
             # if i == 0: sf.plotFarm('original', plot_strips=False, plot_strip_ints=False, plot_sf_rows=False, filesuffix="orig")
             # sf.moveCentroidToOrigin()
-            # sf.setAzimuth(e['general/azimuth/target'])
+            sf.setAzimuth(e['general/azimuth/target'])
             if e['general/global/setback'] > 0: sf.setbackFarmBoundary(e['general/global/setback'])
             sf.createStrips()
             sf.populateAllSolarRows()

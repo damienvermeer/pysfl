@@ -8,8 +8,8 @@ import argparse
 
 
 
-DATA_FILE = r"C:\Users\verme\Desktop\n10000_test.shape"
-OUTPUT_FILE = r"C:\Users\verme\Desktop\n10000_output.csv"
+DATA_FILE = r"C:\Users\Middleton Tower\VS Code Git\sfl\sfl-1\python\n10000_test.shape"#C:\Users\verme\Desktop\n10000_test.shape"
+OUTPUT_FILE = r"C:\Users\Middleton Tower\VS Code Git\sfl\outputdata\n10000_output.csv"
 
 with open(DATA_FILE, 'rb') as f: 
     data_in = pickle.load(f)
@@ -77,7 +77,7 @@ for ix,test in enumerate(data_iterate):
 
     sf_settings['debug'] = False #True to display debug output
 
-    sf_settings['output/directory'] = r"C:\Users\verme\Desktop\zTEMP" #directory to output
+    sf_settings['output/directory'] =  r"C:\Users\Middleton Tower\VS Code Git\sfl\outputdata\plots"#r"C:\Users\verme\Desktop\zTEMP" #directory to output
 
 
     #use the 'generate' task using the target flag
