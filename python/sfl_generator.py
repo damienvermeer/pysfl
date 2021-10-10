@@ -59,6 +59,10 @@ class SFL_Generator():
                     new_settings['general/azimuth/target'] = x + new_settings['general/azimuth/target']
                     settings_to_run.append(new_settings)
         
+        #remove duplicates
+        settings_to_run = [i for n, i in enumerate(settings_to_run) if i not in settings_to_run[n + 1:]]
+
+
         #run
         results = []
         min_modules = 0
