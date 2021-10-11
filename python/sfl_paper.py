@@ -8,18 +8,26 @@ import argparse
 
 
 
-DATA_FILE = r"C:\Users\Middleton Tower\VS Code Git\sfl\sfl-1\python\n10000_test.shape"#C:\Users\verme\Desktop\n10000_test.shape"
-OUTPUT_FILE = r"C:\Users\Middleton Tower\VS Code Git\sfl\outputdata\n10000_output.csv"
+DATA_FILE = r"C:\Users\verme\GIT\sfl\python\n10000_test.shape"
+
 
 with open(DATA_FILE, 'rb') as f: 
     data_in = pickle.load(f)
-with open(OUTPUT_FILE, "w") as myfile:
-    myfile.write('id,area,MBBR,aspectratio,F3%,nModules\n')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--start')
 parser.add_argument('--end')
+parser.add_argument('--fname')
+parser.add_argument('--p2p')
+parser.add_argument('--edgeoffset')
+parser.add_argument('--azimuthtol')
 args = parser.parse_args()
+
+OUTPUT_FILE = r"C:\Users\verme\Desktop\zTEMP" + "\\" + str(args.fname) + ".csv"
+
+with open(OUTPUT_FILE, "w") as myfile:
+    myfile.write('id,area,MBBR,aspectratio,F3%,nModules\n')
+
 if 'start' not in args and 'end' not in args:
     data_iterate = data_in
 else:
@@ -42,9 +50,10 @@ for ix,test in enumerate(data_iterate):
 
     #set options as desired
     sf_settings['general/azimuth/target'] = 0 #0 deg typically for single axis tracking, 90deg for fixed tilt
-    sf_settings['general/azimuth/tolerance'] = [-5, 5] #list of tolerance to consider away from true N (sat) or E (ft)
+    sf_settings['general/azimuth/tolerance'] = [-float(args.azimuthtol), float(args.azimuthtol)] #list of tolerance to consider away from true N (sat) or E (ft)
+
     sf_settings['general/azimuth/tolerance/steps'] = 5 #number of steps to iterate over for azimuth
-    sf_settings['general/global/setback'] = 10 #in m, if non-zero, boundary (set-back) area between boundary and solar farm area
+    sf_settings['general/global/setback'] = float(args.edgeoffset) #in m, if non-zero, boundary (set-back) area between boundary and solar farm area
     sf_settings['general/row/setback'] = [0, 3]  #in m, min and maxset-back from edge of farm boundary for first rows
     sf_settings['general/row/setback/steps'] = 4 #number of steps to iterate over for setback
 
@@ -55,7 +64,7 @@ for ix,test in enumerate(data_iterate):
     sf_settings['row/lengths'] = [88, 60, 32] #total lengths of rows to consider in m
     sf_settings['row/nmodules'] = [84, 56, 28] #list of modules per row in m
 
-    sf_settings['layout/post2post'] = 6 #width between posts for solar farm rows
+    sf_settings['layout/post2post'] = float(args.p2p) #width between posts for solar farm rows
     sf_settings['layout/endrowspace'] = 0.5 #spacing between ends of rows
     sf_settings['layout/align'] = 'auto' #'auto' test both, 'bottom' = align with rotated azimuth of 0deg. 'top' align with rotated azimuth of 180deg
 
@@ -73,11 +82,11 @@ for ix,test in enumerate(data_iterate):
 
     sf_settings['plot/best'] = 1  #top XX to plot, or -1 to plot all
     sf_settings['plot/title'] = f'ID #{ix} Best Result'  #top XX to plot, or -1 to plot all
-    sf_settings['plot/filename'] = f'id_{ix}_best'
+    sf_settings['plot/filename'] = f'{args.fname}_id_{ix}_best'
 
     sf_settings['debug'] = False #True to display debug output
 
-    sf_settings['output/directory'] =  r"C:\Users\Middleton Tower\VS Code Git\sfl\outputdata\plots"#r"C:\Users\verme\Desktop\zTEMP" #directory to output
+    sf_settings['output/directory'] =  r"C:\Users\verme\Desktop\zTEMP\sfoutput"#r"C:\Users\verme\Desktop\zTEMP" #directory to output
 
 
     #use the 'generate' task using the target flag
@@ -92,8 +101,8 @@ for ix,test in enumerate(data_iterate):
                 break
             except:
                 pass
-    except: 
-        pass
+    except Exception as ex: 
+        print(str(ex))
 
 
 

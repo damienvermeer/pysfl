@@ -13,15 +13,28 @@ import random
 
 SHAPEFILE_PATH = r"C:\Users\verme\Desktop\SDM773066\solar\parcel_mp.dbf"
 DBF_SCALE = 10e3
-TOLERANCE = 0.1
+TOLERANCE = 0.05
 MIN_AREA = 157e3 #approx 10MWDC
 MAX_AREA = 2355e3 #approx 150MWDC
 MAX_ASPECT_RATIO = 3.0 #3:1 for length to width
-OFFSET = 0
-SKIP_EVERY = 5
+OFFSET = 18e3
+SKIP_EVERY = 2
 MIN_MBBA_RATIO = 0.1
-NUM_DATAPOINTS = 100
-SEED = 0
+NUM_DATAPOINTS = 500
+SEED = 1
+
+def plotImage(imgname, plotpoly, poly2):
+    fig = plt.figure(figsize=(10, 10))
+    axs = fig.add_subplot(111)
+    axs.plot(*plotpoly.exterior.xy,'k', alpha = 0.75,linewidth=3)
+    axs.plot(*poly2.exterior.xy,'r', alpha = 0.75,linewidth=3)
+    axs.axis('equal')
+    plt.setp(axs, xticks=[], yticks=[])
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.92)
+    FPATH = r"C:\Users\verme\Desktop\zTEMP\outputexampleplots"
+    plt.savefig(f"{FPATH}\\{imgname}.png",bbox_inches='tight',dpi=600)
+
 
 #load DBF file
 sf = shapefile.Reader(SHAPEFILE_PATH)
@@ -33,8 +46,8 @@ shapefileid = 0
 raw_data = []
 output_data = []
 errors = []
-output_file = r"C:\Users\verme\Desktop\outputdataset.shape"
-output_plot = r"C:\Users\verme\Desktop\outputplot.png"
+output_file = r"C:\Users\verme\Desktop\n500_set1_2021_10_11.shape"
+output_plot = r"C:\Users\verme\Desktop\outputplot_n500.png"
 
 #area scaling
 area_scale = list(np.linspace(MIN_AREA,MAX_AREA,NUM_DATAPOINTS+1))
@@ -43,7 +56,7 @@ rotation_target = list(np.linspace(0,360,NUM_DATAPOINTS+1))
 random.Random(SEED).shuffle(area_scale)
 random.Random(SEED).shuffle(rotation_target)
 
-for shape in sf.iterShapes():
+for id,shape in enumerate(sf.iterShapes()):
 
     #offset & skip check
     shapefileid += 1
@@ -72,13 +85,15 @@ for shape in sf.iterShapes():
         length = max(edge_length)
         width = min(edge_length)
         if length/width > MAX_ASPECT_RATIO: continue
-
         #check MBBR
         if newpoly.area/newpoly.minimum_rotated_rectangle.area < MIN_MBBA_RATIO: continue
 
         #check for valid
-        if not newpoly.is_valid:continue
+        if not newpoly.is_valid: continue
 
+        #check if buffer makes it a multipolygon
+        testpoly = newpoly.buffer(-min(edge_length)/4) #make smaller by 25% of MRR width
+        if testpoly.geom_type == "MultiPolygon": continue
 
         #check if similar poly already stored
         #scale polygon to area of 1
@@ -129,7 +144,7 @@ fig = plt.figure(figsize=(10, 10))
 axs = fig.add_subplot(111)
 for x in raw_data:
     plotpoly = affinity.scale(x, xfact=np.sqrt(1/x.area), yfact=np.sqrt(1/x.area)) #scale to 
-    axs.plot(*plotpoly.exterior.xy,'k', alpha = 0.1,linewidth=1)
+    axs.plot(*plotpoly.exterior.xy,'k', alpha = 0.15,linewidth=1)
 axs.axis('equal')
 plt.setp(axs, xticks=[], yticks=[])
 fig.suptitle(f'Data Set #1 (N={len(raw_data)})', fontsize=28)
