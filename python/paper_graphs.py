@@ -3,6 +3,45 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import seaborn as sns
+#indivudal box plot
+
+DATAFILES = [
+    # r"C:\Users\verme\Desktop\zTEMP\p2p4_edge10_azi_10.csv",
+    # r"C:\Users\verme\Desktop\zTEMP\p2p5_edge10_azi_10.csv",
+    r"C:\Users\verme\Desktop\zTEMP\p2p6_edge10_azi_10.csv",
+    # r"C:\Users\verme\Desktop\zTEMP\p2p7_edge10_azi_10.csv",
+    ]
+VALUES = ['6.0']
+# SCALEVALS = [86*2*1/((88+4)*4), 86*2*1/((88+4)*5),86*2*1/((88+4)*6), 86*2*1/((88+4)*7)]
+
+OUTPUT_PATH = r"C:\Users\verme\Desktop\zTEMP\outputboxplots"
+
+dfs = []
+for i,DATAFILE in enumerate(DATAFILES):
+
+    with open(DATAFILE) as f:
+        tempdf = pd.read_csv(f, delimiter=",")
+        tempdf['ytick'] = VALUES[i]
+        dfs.append(tempdf)
+        print(f"{VALUES[i]} = {len(tempdf['F3%'])} values")
+cdf = pd.concat(dfs)
+
+
+#non scaled
+fig, ax = plt.subplots()
+ax.set_title('Results - Iteration #1 - GCR')
+ax = sns.boxplot(x=cdf['F3%'], y=cdf['ytick'], notch=True, showfliers=False, orient="h", width=0.2, color='#8da0cb')
+plt.xlabel('GCR (%)')
+plt.ylabel('Row Spacing (m)')
+ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.25))
+ax.xaxis.grid(True)
+plt.savefig(f"{OUTPUT_PATH}\\gcr_rowrow_iter1only_box.png",bbox_inches='tight',dpi=600)
+
+
+
+# ------
+
 
 DATAFILES = [
     r"C:\Users\verme\Desktop\zTEMP\p2p4_edge10_azi_10.csv",
@@ -29,12 +68,12 @@ cdf = pd.concat(dfs)
 
 #non scaled
 fig, ax = plt.subplots()
-ax.set_title('Results - F3 vs Row Spacing')
+ax.set_title('Results - Iterations #1-4 - GCR vs Row Spacing')
 ax = sns.boxplot(x=cdf['F3%'], y=cdf['ytick'], notch=True, showfliers=False, orient="h", width=0.4, palette='Set2')
-plt.xlabel('$F_3$ (%)')
+plt.xlabel('GCR (%)')
 plt.ylabel('Row Spacing (m)')
-ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
-ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.25))
+ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
+ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.5))
 ax.xaxis.grid(True)
 plt.savefig(f"{OUTPUT_PATH}\\gcr_rowrow_raw_box.png",bbox_inches='tight',dpi=600)
 
@@ -76,9 +115,9 @@ cdf = pd.concat(dfs)
 
 #non scaled
 fig, ax = plt.subplots()
-ax.set_title('Results - GCR vs Azimuth')
+ax.set_title('Results - Iterations #1,7,8 - GCR vs Azimuth')
 ax = sns.boxplot(x=cdf['F3%'], y=cdf['ytick'], notch=True, showfliers=False, orient="h", width=0.4, palette='Set2')
-plt.xlabel('$F_3$ (%)')
+plt.xlabel('GCR (%)')
 plt.ylabel('Azimuth (deg)')
 ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
 ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.25))
@@ -110,10 +149,10 @@ cdf = pd.concat(dfs)
 
 #non scaled
 fig, ax = plt.subplots()
-ax.set_title('Results - GCR vs Perimeter Setback')
+ax.set_title('Results - Iterations #1,5,6 - GCR vs Perimeter Offset')
 ax = sns.boxplot(x=cdf['F3%'], y=cdf['ytick'], notch=True, showfliers=False, orient="h", width=0.4, palette='Set2')
-plt.xlabel('$F_3$ (%)')
-plt.ylabel('Setback (m)')
+plt.xlabel('GCR (%)')
+plt.ylabel('Offset (m)')
 ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
 ax.xaxis.set_minor_locator(ticker.MultipleLocator(0.25))
 ax.xaxis.grid(True)

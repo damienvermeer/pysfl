@@ -8,7 +8,8 @@ import argparse
 
 
 
-DATA_FILE = r"C:\Users\verme\GIT\sfl\python\n10000_test.shape"
+# DATA_FILE = r"C:\Users\verme\GIT\sfl\python\n10000_test.shape"
+DATA_FILE = r"C:\Users\verme\Desktop\n500_set1_2021_10_11.shape"
 
 
 with open(DATA_FILE, 'rb') as f: 

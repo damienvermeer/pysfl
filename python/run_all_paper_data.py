@@ -1,10 +1,10 @@
 
 
 switches = [
-    # '--fname p2p7_edge10_azi_10 --p2p 7.0 --edgeoffset 10.0 --azimuthtol 10',
-    # '--fname p2p6_edge10_azi_10 --p2p 6.0 --edgeoffset 10.0 --azimuthtol 10',
-    # '--fname p2p5_edge10_azi_10 --p2p 5.0 --edgeoffset 10.0 --azimuthtol 10',
-    # '--fname p2p4_edge10_azi_10 --p2p 4.0 --edgeoffset 10.0 --azimuthtol 10',
+    '--fname p2p7_edge10_azi_10 --p2p 7.0 --edgeoffset 10.0 --azimuthtol 10',
+    '--fname p2p6_edge10_azi_10 --p2p 6.0 --edgeoffset 10.0 --azimuthtol 10',
+    '--fname p2p5_edge10_azi_10 --p2p 5.0 --edgeoffset 10.0 --azimuthtol 10',
+    '--fname p2p4_edge10_azi_10 --p2p 4.0 --edgeoffset 10.0 --azimuthtol 10',
     '--fname p2p6_edge5_azi_10 --p2p 6.0 --edgeoffset 5.0 --azimuthtol 10',
     '--fname p2p6_edge0_azi_10 --p2p 6.0 --edgeoffset 0.0 --azimuthtol 10',
     '--fname p2p6_edge10_azi_5 --p2p 6.0 --edgeoffset 10.0 --azimuthtol 5',
