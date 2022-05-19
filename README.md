@@ -1,4 +1,4 @@
 # sfl
 Solar farm design software
 
-As of 20th Feb 2022 work in progress to clean for full public release
+Update as of 19.05.2022 - now in progress cleaning up / docs. Watch this space
