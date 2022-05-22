@@ -6,6 +6,8 @@ from shapely.geometry import Polygon
 from shapely import affinity
 import numpy as np
 import yaml
+import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw
 
 # import Constants as c
 import StripPoly
@@ -108,6 +110,24 @@ class SolarFarm:
         #TODO review with dict implementation
         if SolarFarm.validate(temp_settings): self.settings = temp_settings  
 
+    #TODO replace with something that doesnt use matplotlib!
+    def generate_debug_plot(self, pillow=False):
+        # if pillow:
+        #     im = Image.new('RGB', (1000, 1000), (255, 255, 255))
+        #     draw = ImageDraw.Draw(im)
+        #     draw.polygon(list(map(tuple, self.polygon.exterior.xy))[0], fill=(50, 50, 50), outline=(20, 20, 20))
+        #     # for strip in self.strips:
+        #     #     draw.polygon(list(map(tuple, strip.box_poly.exterior.xy))[0], fill=(100, 100, 100), outline=(255, 0, 0))
+        #     im.save('test.jpg', quality=95)
+        # else:
+        plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
+        for strip in self.strips:
+            plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.show()
+
+
+
     def generate(self):
         """
         Generates a single solar farm layout
@@ -143,15 +163,18 @@ class SolarFarm:
                         ) + self.settings['solar']['spacing']['edge-offset']
 
         #Generate a StripPoly for each strip. Start from index 1 (so box formed)
-        for i,_ in enumerate(strip_xcoords[1:]):
+        module_length = self.settings['solar']['module']['dim-length']
+        for strip_id,xcoord in enumerate(strip_xcoords):
             self.strips.append(StripPoly.StripPoly(
-                                            xleft = strip_xcoords[i-1],
-                                            xright = strip_xcoords[i],
-                                            ybottom = self.polygon.bounds[1],
-                                            ytop = self.polygon.bounds[3]
+                                            minx = xcoord - module_length,
+                                            miny = self.polygon.bounds[1],
+                                            maxx = xcoord + module_length,
+                                            maxy =self.polygon.bounds[3],
+                                            strip_id = strip_id,
+                                            settings = self.settings
                                             )
                                 )
-        y = 0
+        
         #iterate over strips creating each of them
         # print("--|creating strips") if self.settings['debug'] == True else False
         # # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
@@ -292,9 +315,10 @@ class SolarFarm:
 
 
 
-coords = [(100,200),(300,400),(500,600)]
+coords = [(0,0),(250,250),(300,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
+sftest.generate_debug_plot()
 
     # def scaleFarmBoundary(self, scale):
     #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)

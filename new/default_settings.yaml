@@ -17,5 +17,8 @@ roads:
 
 solar:
   spacing:
-    post-to-post: 10 #m, spacing between center of solar row and its neighbour
-    edge-offset: 2 #m, one-off shift for all solar rows from edge
+    post-to-post: 6 #m, spacing between center of solar row and its neighbour
+    edge-offset: 20 #m, one-off shift for all solar rows from edge
+  module:
+    dim-length: 2 #m, long side of module length
+    dim-width: 1 #m, short side of module length

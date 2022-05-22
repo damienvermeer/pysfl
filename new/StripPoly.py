@@ -6,17 +6,19 @@
 # import operator
 # import matplotlib.pyplot as plt
 # import numpy as np
-from shapely.geometry import box
+from shapely import geometry
 
 #NEW CLASS TO CLEAN
 
 class StripPoly:
 
-    def __init__(self, minx=-1, miny=-1, maxx=1, maxy=1):
+    def __init__(self, minx=-1, miny=-1, maxx=1, maxy=1, strip_id=-1, settings=None):
         #TODO docustring
         #TODO validation of dimensions i.e. xright>xleft etc
         #Inputs are valid, create box
-        self.polygon = shapely.geometry.box(minx, miny, maxx, maxy)
+        self.box_poly = geometry.box(minx, miny, maxx, maxy)
+        self.strip_id = strip_id
+        self.settings = settings
 
 
 
