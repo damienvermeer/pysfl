@@ -1,14 +1,14 @@
 import math
-from textwrap import dedent
+import copy
 
-# from shapely.geometry import *
-# from shapely.geometry.point import PointAdapter
+from shapely.geometry import Polygon
 # from shapely.ops import *
-# from shapely import affinity
+from shapely import affinity
 import numpy as np
+import yaml
 
 # import Constants as c
-# import StripPoly
+import StripPoly
 # import SolarRow
 # import POI
 # import MultiPointHandler
@@ -41,58 +41,172 @@ class SolarFarm:
 
         :param poly_coords: A list of 2-float-tuples which defines a 
                             2-dimensional polygon that represents the land area 
-                            the solar farm is to be generated for
+                            for the solar farm.
         :type poly_coords: list[tuple(float,float)]
+        :param settings: A settings dictionary which follows a YAML file 
+                        structure, which defines how the solar farm layout 
+                        should be generated.
+        :type settings: dict
+        :param cost_data: A cost dictionary which follows a YAML file 
+                        structure, which defines the cost of each asset within 
+                        the solar farm, used for optimisation.
+        :type cost_data: dict
         :return: A SolarFarm class instance
         :rtype: SolarFarm
-        
-
-        #TO CLEAN UP BELOW
-        :param DAMIEN-TO-DO-likely yaml? settings: A yaml(?) file representation
-                                        of the solar farm configuration settings
-                                        maybe not sure??
-        :param DAMIEN-TO-DO-likely yaml? cost_data: A yaml(?) file 
-                                    representation of the solar farm 
-                                    configuration settings maybe not sure??                
-
-        Keyword arguments:
-        poly_coords -- list of 2-tuples with the x,y coords of the land polygon
-        settings 
-        
+        :raises SolarFarmDataValidationError: If poly_coords are not a list of
+                                            2-tuples, or the settings or cost 
+                                            data dictionaries do not match the 
+                                            YAML representation.
         """
         #Check polygon is valid before applying
         if SolarFarm.validate(poly_coords, datatype='polygon'):
-            self.polygon = poly_coords
-        
+            self.polygon = Polygon(poly_coords)
         #Check settings is valid before applying, use default if not provided
         if settings == 'default':
             self.settings = SolarFarm.generate_default_settings()
         elif SolarFarm.validate(settings, datatype='settings'):
             self.settings = settings
-
         #Check cost_data is valid before applying, use default if not provided
         if cost_data == 'default':
             self.cost_data = SolarFarm.generate_default_cost_data()
         elif SolarFarm.validate(cost_data, datatype='cost_data'):
             self.cost_data = cost_data
+
+        #internal class instance variables declaration
+        self.strips = []
+
          
     def replace_settings(self, settings):
+        """
+        Replaces the settings of an existing SolarFarm instance with a new one
+
+        :param settings: A settings dictionary which follows a YAML file 
+                        structure, which defines how the solar farm layout 
+                        should be generated.
+        :type settings: dict
+        :rtype: None
+        :raises SolarFarmDataValidationError: If settingsdict does not match 
+                                            the YAML representation.
+        """
         if SolarFarm.validate(settings, datatype='settings'):
             self.settings = settings 
 
     def update_single_setting(self, setting_key, setting_val):
+        """
+        Updates a single setting value of an existing SolarFarm instance
+
+        :param setting_key: A key of the YAML settings dictionary to update
+        :type setting_key: str
+        :param setting_val: The value of the YAML settings dictionary to set
+        :type setting_key: float or string or int or bool
+        :rtype: None
+        :raises SolarFarmDataValidationError: If updated setting does not match 
+                                            the YAML representation.
+        """        
         temp_settings = copy.deepcopy(self.settings)
-        temp_settings[setting_key] = setting_val
+        temp_settings[setting_key] = setting_val 
+        #TODO review with dict implementation
         if SolarFarm.validate(temp_settings): self.settings = temp_settings  
 
-
-
     def generate(self):
-        #backup perimiter
-        #set offset  from boundary if set
+        """
+        Generates a single solar farm layout
+
+        :param ?????
+        """  
+        #Move centroid to origin to handle rotating
+        self.polygon = affinity.translate(self.polygon, 
+                                        xoff=-self.polygon.centroid.xy[0][0], 
+                                        yoff=-self.polygon.centroid.xy[1][0]
+                                        )
+        #Save a backup copy of original polygon perimeter for setback plotting
+        self._original_polygon = copy.deepcopy(self.polygon)
+        #Set site azimuth (rotate entire polygon)
+        self.polygon = affinity.rotate(self.polygon,
+                                        self.settings['site']['azimuth'],
+                                        origin=self.polygon.centroid
+                                        )
+        #Apply boundary offset by shrinking the polygon
+        if self.settings['site']['setback'] > 0:
+            self.polygon = self.polygon.buffer(
+                                            -self.settings['site']['setback'],
+                                            single_sided=True
+                                            )
+        #(If set) generate perimeter road
+        if self.settings['roads']['perimeter'] != 0:
+            pass #TODO implement
+        #Create strips, note the polygon has been resized by offset already
+        strip_xcoords = np.arange(
+                        self.polygon.bounds[0],
+                        self.polygon.bounds[2],
+                        self.settings['solar']['spacing']['post-to-post']
+                        ) + self.settings['solar']['spacing']['edge-offset']
+
+        #Generate a StripPoly for each strip. Start from index 1 (so box formed)
+        for i,_ in enumerate(strip_xcoords[1:]):
+            self.strips.append(StripPoly.StripPoly(
+                                            xleft = strip_xcoords[i-1],
+                                            xright = strip_xcoords[i],
+                                            ybottom = self.polygon.bounds[1],
+                                            ytop = self.polygon.bounds[3]
+                                            )
+                                )
+        y = 0
+        #iterate over strips creating each of them
+        # print("--|creating strips") if self.settings['debug'] == True else False
+        # # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
+        
+        # x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
+        # if 'general/row/setback/target' in self.settings:
+        #     x_min += self.settings['general/row/setback/target']
+
+        # while True:
+        #     #generate strip polygon
+        #     y_min = self.polygon.bounds[1]
+        #     strip_poly = box(x_min, y_min, x_min+self.settings['module/height'], y_min+poly_height)
+            
+        #     x_min += self.settings['layout/post2post']
+
+        #     if x_min > self.polygon.bounds[2]:
+        #         break
+
+        #     #calculate intersection
+        #     strip_intersection = None
+        #     try:
+        #         strip_intersection = self.polygon.intersection(strip_poly)
+        #     except Exception:
+        #         pass
+
+        #     if strip_intersection is None or strip_intersection.is_empty:
+        #         continue
+            
+        #     if strip_intersection.geom_type == "MultiPolygon":
+        #         for poly in strip_intersection:
+        #             new_strip = StripPoly.StripPoly(strip_poly, poly, self)
+        #             new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
+        #             self.strips.append(new_strip)
+        #     elif strip_intersection.geom_type == "Polygon":
+        #         new_strip = StripPoly.StripPoly(strip_poly, strip_intersection, self)
+        #         new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
+        #         self.strips.append(new_strip)
+                                
+
+        # #set right neighbours
+        # print("--|assigning right neighbours") if self.settings['debug'] == True else False 
+        # for i,e in enumerate(self.strips[:-1]):
+        #     e.setRightNeighbour(self.strips[i+1])
+
+
+                       
+
+
+
+
+
+
+
         #generate perimeter road if set
-        #centroid to origin
-        #rotate if azimuth 
+
         #place main substation area
         #create strips
         #create rows
@@ -149,6 +263,15 @@ class SolarFarm:
                         ("Solar farm cannot be generated, a coordinate point "
                         f"in tuple {tup} is not a valid number."
                         ))
+            #Create temp polygon and check its bounds
+            if len(Polygon(poly_coords).exterior.coords) < 2:
+                    raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, the polygon bounds form "
+                    "a straight line (dimension of poly bounds < 2)."
+                    ))
+            
+            #If we get here validation was passed
+            return True
        
         if datatype == 'settings':
             pass
@@ -157,7 +280,10 @@ class SolarFarm:
 
     @staticmethod
     def generate_default_settings():
-        return {}
+        #TODO clean up
+        with open(r"C:\Users\verme\GIT\sfl\new\default_settings.yaml", "r") as stream:
+            return yaml.safe_load(stream)
+
 
     @staticmethod
     def generate_default_cost_data():
@@ -165,6 +291,10 @@ class SolarFarm:
 
 
 
+
+coords = [(100,200),(300,400),(500,600)]
+sftest = SolarFarm(coords)
+sftest.generate()
 
     # def scaleFarmBoundary(self, scale):
     #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
@@ -231,12 +361,12 @@ class SolarFarm:
     #     poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
 
     #     #calc number of strips to make
-    #     num_strips = int(poly_width/self.settings['layout/post2post'])
-    #     print("--|# strips = " + str(num_strips+1)) if self.settings['debug'] == True else False
+    #     n_strips = int(poly_width/self.settings['layout/post2post'])
+    #     print("--|# strips = " + str(n_strips+1)) if self.settings['debug'] == True else False
 
     #     #iterate over strips creating each of them
     #     print("--|creating strips") if self.settings['debug'] == True else False
-    #     # print(np.linspace(self.polygon.bounds[0], num_strips*self.settings['layout/post2post'], num=num_strips))
+    #     # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
         
     #     x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
     #     if 'general/row/setback/target' in self.settings:

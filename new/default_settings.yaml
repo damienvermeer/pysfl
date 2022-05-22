@@ -1,0 +1,21 @@
+#SFL YAML configuration
+#default configuration
+project:
+  name: 'Example Solar Farm'
+
+#Overall details for the solar farm site
+site:
+  azimuth: 0 #angle from true north for rows, set to 0 for no rotation
+  setback: 0 #meters to set rows back from edge, set to 0 for no setback
+
+#Configuration for roads within the solar farm
+roads:
+  perimeter:
+    road-width: 5 #m, width of perimeter roadway, set to 0 if not required
+    clear-width: 8 #m, width of clearway for road, must be >=road-width
+    turn-radius: #m, minimum turn radius of the roadway. 0=no smoothing
+
+solar:
+  spacing:
+    post-to-post: 10 #m, spacing between center of solar row and its neighbour
+    edge-offset: 2 #m, one-off shift for all solar rows from edge

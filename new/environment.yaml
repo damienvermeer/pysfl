@@ -1,0 +1,21 @@
+name: sfl
+channels:
+  - defaults
+dependencies:
+  - ca-certificates=2022.4.26=haa95532_0
+  - certifi=2021.10.8=py39haa95532_2
+  - openssl=1.1.1o=h2bbff1b_0
+  - pip=21.2.4=py39haa95532_0
+  - python=3.9.12=h6244533_0
+  - setuptools=61.2.0=py39haa95532_0
+  - sqlite=3.38.3=h2bbff1b_0
+  - tzdata=2022a=hda174b7_0
+  - vc=14.2=h21ff451_1
+  - vs2015_runtime=14.27.29016=h5e58377_2
+  - wheel=0.37.1=pyhd3eb1b0_0
+  - wincertstore=0.2=py39haa95532_2
+  - pip:
+    - numpy==1.22.3
+    - pyyaml==6.0
+    - shapely==1.8.2
+prefix: C:\Users\verme\.conda\envs\sfl
