@@ -22,3 +22,21 @@ solar:
   module:
     dim-length: 2 #m, long side of module length
     dim-width: 1 #m, short side of module length
+  strings:
+    mods-per-string: 27
+  rows:
+    n-modules-updown: 1
+    portrait-mount: true
+    types:
+      - name: 'Three string row'
+        strings-on-row: 3 #number of strings on this row total
+        space-between-modules: 0.03 #m, space between adjacent rows
+        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
+      - name: 'Two string row'
+        strings-on-row: 2 #number of strings on this row total
+        space-between-modules: 0.03 #m, space between adjacent rows
+        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
+      - name: 'Single string row'
+        strings-on-row: 1 #number of strings on this row total
+        space-between-modules: 0.03 #m, space between adjacent rows
+        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)      

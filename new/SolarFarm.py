@@ -123,6 +123,8 @@ class SolarFarm:
         plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
             plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
+            # for x in strip.intersect_polys:
+            #     plt.plot(*x.exterior.xy,'g',alpha=0.2)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
 
@@ -162,296 +164,40 @@ class SolarFarm:
                         self.settings['solar']['spacing']['post-to-post']
                         ) + self.settings['solar']['spacing']['edge-offset']
 
-        #Generate a StripPoly for each strip. Start from index 1 (so box formed)
-        module_length = self.settings['solar']['module']['dim-length']
+        #Generate a StripPoly for each strip based on the xcoords.
+        #First calculate how wide each strip needs to be
+        if self.settings['solar']['rows']['portrait-mount']:
+            row_width = self.settings['solar']['module']['dim-width']
+        else:
+            row_width = self.settings['solar']['module']['dim-length']                    
+        #Now create the strips
         for strip_id,xcoord in enumerate(strip_xcoords):
+            #The strip generates its own intersections with self.polygon
             self.strips.append(StripPoly.StripPoly(
-                                            minx = xcoord - module_length,
+                                            minx = xcoord - row_width,
                                             miny = self.polygon.bounds[1],
-                                            maxx = xcoord + module_length,
-                                            maxy =self.polygon.bounds[3],
+                                            maxx = xcoord + row_width,
+                                            maxy = self.polygon.bounds[3],
                                             strip_id = strip_id,
-                                            settings = self.settings
+                                            settings = self.settings,
+                                            master_poly = self.polygon
                                             )
                                 )
-        
-        #iterate over strips creating each of them
-        # print("--|creating strips") if self.settings['debug'] == True else False
-        # # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
-        
-        # x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
-        # if 'general/row/setback/target' in self.settings:
-        #     x_min += self.settings['general/row/setback/target']
-
-        # while True:
-        #     #generate strip polygon
-        #     y_min = self.polygon.bounds[1]
-        #     strip_poly = box(x_min, y_min, x_min+self.settings['module/height'], y_min+poly_height)
-            
-        #     x_min += self.settings['layout/post2post']
-
-        #     if x_min > self.polygon.bounds[2]:
-        #         break
-
-        #     #calculate intersection
-        #     strip_intersection = None
-        #     try:
-        #         strip_intersection = self.polygon.intersection(strip_poly)
-        #     except Exception:
-        #         pass
-
-        #     if strip_intersection is None or strip_intersection.is_empty:
-        #         continue
-            
-        #     if strip_intersection.geom_type == "MultiPolygon":
-        #         for poly in strip_intersection:
-        #             new_strip = StripPoly.StripPoly(strip_poly, poly, self)
-        #             new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
-        #             self.strips.append(new_strip)
-        #     elif strip_intersection.geom_type == "Polygon":
-        #         new_strip = StripPoly.StripPoly(strip_poly, strip_intersection, self)
-        #         new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
-        #         self.strips.append(new_strip)
-                                
-
-        # #set right neighbours
-        # print("--|assigning right neighbours") if self.settings['debug'] == True else False 
-        # for i,e in enumerate(self.strips[:-1]):
-        #     e.setRightNeighbour(self.strips[i+1])
-
-
-                       
+        #Check we have some strips to process
+        if len(self.strips) == 0: 
+            raise SolarFarmDataValidationError(
+                ("Solar farm cannot be generated, no rows could be generated " 
+                ", confirm correct land scale, solar module sizing & spacing"
+                ))
+        #Generate a 'priority list', typically in order of length
+        #This plist is then sent to each strip and each strip handles iteslf
+        #With how many rows to add, or road nodes to add etc
 
 
 
 
 
 
-
-        #generate perimeter road if set
-
-        #place main substation area
-        #create strips
-        #create rows
-        #create roads
-        #place inverters
-        #place combiner boxes
-        #place string cables
-        #place hv cables
-        #cleanup (check for duplicates etc)
-        #return results data
-        results_data = {
-            'generation_time': 0,
-            'n_modules' : 123,
-            'mwp' : 456,
-            'total_cost' : 100000
-        }
-        return True
-
-
-
-
-    @staticmethod
-    def validate(poly_coords, datatype='polygon'):
-        if datatype == 'polygon':
-            #Check for a list being passed as input.
-            if not isinstance(poly_coords, list): 
-                raise SolarFarmDataValidationError(
-                    ("Solar farm cannot be generated, coordinate " 
-                    "points need to be in list of tuples format"
-                    ))
-            #Check for at least three items in the list.
-            if len(poly_coords) < 3: 
-                raise SolarFarmDataValidationError(
-                    ("Solar farm cannot be generated, number of "
-                    "coordinates passed to generator needs to be at least 3"
-                    ))
-            #Check that each item in the list is a tuple. 
-            if any([not isinstance(x,tuple) for x in poly_coords]): 
-                raise SolarFarmDataValidationError(
-                    ("Solar farm cannot be generated, an item in the " 
-                    "poly_coords list was not a tuple."
-                    ))
-            #Check if any tuple is more, or less, than 2 items long.
-            if any([len(x) != 2 for x in poly_coords]): 
-                raise SolarFarmDataValidationError(
-                    ("Solar farm cannot be generated, a coordinate "
-                    "point was identified which was not a tuple, or is not a " 
-                    "tuple of 2 coordinates. Only 2 dimensions are supported."
-                    ))
-            #For each tuple, check that each value is numeric
-            for tup in poly_coords:
-                if any([not isinstance(x,(int, float)) for x  in tup]): 
-                    raise SolarFarmDataValidationError(
-                        ("Solar farm cannot be generated, a coordinate point "
-                        f"in tuple {tup} is not a valid number."
-                        ))
-            #Create temp polygon and check its bounds
-            if len(Polygon(poly_coords).exterior.coords) < 2:
-                    raise SolarFarmDataValidationError(
-                    ("Solar farm cannot be generated, the polygon bounds form "
-                    "a straight line (dimension of poly bounds < 2)."
-                    ))
-            
-            #If we get here validation was passed
-            return True
-       
-        if datatype == 'settings':
-            pass
-        if datatype == 'cost_data':
-            pass
-
-    @staticmethod
-    def generate_default_settings():
-        #TODO clean up
-        with open(r"C:\Users\verme\GIT\sfl\new\default_settings.yaml", "r") as stream:
-            return yaml.safe_load(stream)
-
-
-    @staticmethod
-    def generate_default_cost_data():
-        return {}
-
-
-
-
-coords = [(0,0),(250,250),(300,0)]
-sftest = SolarFarm(coords)
-sftest.generate()
-sftest.generate_debug_plot()
-
-    # def scaleFarmBoundary(self, scale):
-    #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
-
-    # def translateFarmBoundaryToOrigin(self):
-    #     self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.bounds[0], yoff=-self.polygon.bounds[1])
-
-    # def getArea(self):
-    #     return self.polygon.area
-
-    # def getPerimeter(self):
-    #     return self.polygon.perimeter
-
-    # def setbackFarmBoundary(self, setback):
-    #     self.pre_setback_polygon = self.polygon #back this up
-    #     self.polygon = self.polygon.buffer(-setback)
-    #     if self.polygon.boundary.geom_type == 'MultiLineString':
-    #         return False
-    #     else:
-    #         self.processRoadOnBoundary(setback)
-    #         return True
-
-    # def deleteDuplicates(self):   
-    #     #temporary workaround - the layout shouldnt create dupes anyway! 
-    #     for strip in self.strips:
-    #         for element in strip.getDataArray():
-    #             if element.getDataType() == e_d.SOLAR_ROW:
-    #                 for elm in strip.getDataArray():
-    #                     if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
-    #                         intersect = not elm.getPoly().intersection(element.getPoly()).is_empty
-    #                         if intersect: #means a duplicate
-    #                             strip.removeFromDataArray(elm)        
-
-
-    # def processRoadOnBoundary(self, setback):
-    #     ls_boundary = self.polygon.boundary.parallel_offset(setback/2, 'left')
-
-    #     #travel along boundary interpolating
-    #     road_points = []
-    #     for f in range(0, int(np.ceil(ls_boundary.length)) + 1):
-    #         road_points.append(ls_boundary.interpolate(f).coords[0])
-    #     road_points.append(road_points[0])
-
-    #     #create road handler
-    #     new_mph = MultiPointHandler.MultiPointHandler(self.settings, type_in=e.MultiPointDataTypes.RING_ROAD)
-    #     new_mph.setCoords(road_points)
-    #     new_mph.updatePoly()
-    #     self.mphs.append(new_mph)
-
-    # def getBoundaryPoly(self):
-    #     return self.polygon
-
-    # def getPreSetbackPoly(self):
-    #     return self.pre_setback_polygon
-
-    # def createStrips(self):
-
-    #     #create strips as an array of StripPolys
-    #     print("--|strip generator starting") if self.settings['debug'] == True else False
-
-    #     #calc polygon data
-    #     if len(self.polygon.bounds) < 2: return
-    #     poly_width = self.polygon.bounds[2] - self.polygon.bounds[0]
-    #     poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
-
-    #     #calc number of strips to make
-    #     n_strips = int(poly_width/self.settings['layout/post2post'])
-    #     print("--|# strips = " + str(n_strips+1)) if self.settings['debug'] == True else False
-
-    #     #iterate over strips creating each of them
-    #     print("--|creating strips") if self.settings['debug'] == True else False
-    #     # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
-        
-    #     x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
-    #     if 'general/row/setback/target' in self.settings:
-    #         x_min += self.settings['general/row/setback/target']
-
-    #     while True:
-    #         #generate strip polygon
-    #         y_min = self.polygon.bounds[1]
-    #         strip_poly = box(x_min, y_min, x_min+self.settings['module/height'], y_min+poly_height)
-            
-    #         x_min += self.settings['layout/post2post']
-
-    #         if x_min > self.polygon.bounds[2]:
-    #             break
-
-    #         #calculate intersection
-    #         strip_intersection = None
-    #         try:
-    #             strip_intersection = self.polygon.intersection(strip_poly)
-    #         except Exception:
-    #             pass
-
-    #         if strip_intersection is None or strip_intersection.is_empty:
-    #             continue
-            
-    #         if strip_intersection.geom_type == "MultiPolygon":
-    #             for poly in strip_intersection:
-    #                 new_strip = StripPoly.StripPoly(strip_poly, poly, self)
-    #                 new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
-    #                 self.strips.append(new_strip)
-    #         elif strip_intersection.geom_type == "Polygon":
-    #             new_strip = StripPoly.StripPoly(strip_poly, strip_intersection, self)
-    #             new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
-    #             self.strips.append(new_strip)
-                                
-
-    #     #set right neighbours
-    #     print("--|assigning right neighbours") if self.settings['debug'] == True else False 
-    #     for i,e in enumerate(self.strips[:-1]):
-    #         e.setRightNeighbour(self.strips[i+1])
-
-
-                       
-
-
-
-
-
-
-
-
-
-
-    # def populateAllSolarRows(self):
-    #     print("--|solar row layout generator starting") if self.settings['debug'] == True else False
-
-    #     #check we have some strips to work on
-    #     if len(self.strips) < 1:
-    #         return
-    #         # raise ValueError("!!! Fatal error - Cannot populate solar rows with no strips")
-        
 
     #     firstpass = True
     #     while True:
@@ -675,6 +421,235 @@ sftest.generate_debug_plot()
     #                 yoffset += row_length
     #     else:
     #         raise ValueError("Not implemented anything other than \'bottom\' align yet.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #generate perimeter road if set
+
+        #place main substation area
+        #create strips
+        #create rows
+        #create roads
+        #place inverters
+        #place combiner boxes
+        #place string cables
+        #place hv cables
+        #cleanup (check for duplicates etc)
+        #return results data
+        results_data = {
+            'generation_time': 0,
+            'n_modules' : 123,
+            'mwp' : 456,
+            'total_cost' : 100000
+        }
+        return True
+
+
+
+
+    @staticmethod
+    def validate(poly_coords, datatype='polygon'):
+        if datatype == 'polygon':
+            #Check for a list being passed as input.
+            if not isinstance(poly_coords, list): 
+                raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, coordinate " 
+                    "points need to be in list of tuples format"
+                    ))
+            #Check for at least three items in the list.
+            if len(poly_coords) < 3: 
+                raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, number of "
+                    "coordinates passed to generator needs to be at least 3"
+                    ))
+            #Check that each item in the list is a tuple. 
+            if any([not isinstance(x,tuple) for x in poly_coords]): 
+                raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, an item in the " 
+                    "poly_coords list was not a tuple."
+                    ))
+            #Check if any tuple is more, or less, than 2 items long.
+            if any([len(x) != 2 for x in poly_coords]): 
+                raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, a coordinate "
+                    "point was identified which was not a tuple, or is not a " 
+                    "tuple of 2 coordinates. Only 2 dimensions are supported."
+                    ))
+            #For each tuple, check that each value is numeric
+            for tup in poly_coords:
+                if any([not isinstance(x,(int, float)) for x  in tup]): 
+                    raise SolarFarmDataValidationError(
+                        ("Solar farm cannot be generated, a coordinate point "
+                        f"in tuple {tup} is not a valid number."
+                        ))
+            #Create temp polygon and check its bounds
+            if len(Polygon(poly_coords).exterior.coords) < 2:
+                    raise SolarFarmDataValidationError(
+                    ("Solar farm cannot be generated, the polygon bounds form "
+                    "a straight line (dimension of poly bounds < 2)."
+                    ))
+            
+            #If we get here validation was passed
+            return True
+       
+        if datatype == 'settings':
+            pass
+        if datatype == 'cost_data':
+            pass
+
+    @staticmethod
+    def generate_default_settings():
+        #TODO clean up
+        with open(r"C:\Users\verme\GIT\sfl\new\default_settings.yaml", "r") as stream:
+            return yaml.safe_load(stream)
+
+
+    @staticmethod
+    def generate_default_cost_data():
+        return {}
+
+
+
+
+coords = [(0,0),(500,0),(500,500),(0,250)]
+sftest = SolarFarm(coords)
+sftest.generate()
+sftest.generate_debug_plot()
+
+    # def scaleFarmBoundary(self, scale):
+    #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
+
+    # def translateFarmBoundaryToOrigin(self):
+    #     self.polygon = affinity.translate(self.polygon, xoff=-self.polygon.bounds[0], yoff=-self.polygon.bounds[1])
+
+    # def getArea(self):
+    #     return self.polygon.area
+
+    # def getPerimeter(self):
+    #     return self.polygon.perimeter
+
+    # def setbackFarmBoundary(self, setback):
+    #     self.pre_setback_polygon = self.polygon #back this up
+    #     self.polygon = self.polygon.buffer(-setback)
+    #     if self.polygon.boundary.geom_type == 'MultiLineString':
+    #         return False
+    #     else:
+    #         self.processRoadOnBoundary(setback)
+    #         return True
+
+    # def deleteDuplicates(self):   
+    #     #temporary workaround - the layout shouldnt create dupes anyway! 
+    #     for strip in self.strips:
+    #         for element in strip.getDataArray():
+    #             if element.getDataType() == e_d.SOLAR_ROW:
+    #                 for elm in strip.getDataArray():
+    #                     if elm.getDataType() == e_d.SOLAR_ROW and elm != element:
+    #                         intersect = not elm.getPoly().intersection(element.getPoly()).is_empty
+    #                         if intersect: #means a duplicate
+    #                             strip.removeFromDataArray(elm)        
+
+
+    # def processRoadOnBoundary(self, setback):
+    #     ls_boundary = self.polygon.boundary.parallel_offset(setback/2, 'left')
+
+    #     #travel along boundary interpolating
+    #     road_points = []
+    #     for f in range(0, int(np.ceil(ls_boundary.length)) + 1):
+    #         road_points.append(ls_boundary.interpolate(f).coords[0])
+    #     road_points.append(road_points[0])
+
+    #     #create road handler
+    #     new_mph = MultiPointHandler.MultiPointHandler(self.settings, type_in=e.MultiPointDataTypes.RING_ROAD)
+    #     new_mph.setCoords(road_points)
+    #     new_mph.updatePoly()
+    #     self.mphs.append(new_mph)
+
+    # def getBoundaryPoly(self):
+    #     return self.polygon
+
+    # def getPreSetbackPoly(self):
+    #     return self.pre_setback_polygon
+
+    # def createStrips(self):
+
+    #     #create strips as an array of StripPolys
+    #     print("--|strip generator starting") if self.settings['debug'] == True else False
+
+    #     #calc polygon data
+    #     if len(self.polygon.bounds) < 2: return
+    #     poly_width = self.polygon.bounds[2] - self.polygon.bounds[0]
+    #     poly_height = self.polygon.bounds[3] - self.polygon.bounds[1]
+
+    #     #calc number of strips to make
+    #     n_strips = int(poly_width/self.settings['layout/post2post'])
+    #     print("--|# strips = " + str(n_strips+1)) if self.settings['debug'] == True else False
+
+    #     #iterate over strips creating each of them
+    #     print("--|creating strips") if self.settings['debug'] == True else False
+    #     # print(np.linspace(self.polygon.bounds[0], n_strips*self.settings['layout/post2post'], num=n_strips))
+        
+    #     x_min = self.polygon.bounds[0] + (self.settings['layout/post2post']/2)
+    #     if 'general/row/setback/target' in self.settings:
+    #         x_min += self.settings['general/row/setback/target']
+
+    #     while True:
+    #         #generate strip polygon
+    #         y_min = self.polygon.bounds[1]
+    #         strip_poly = box(x_min, y_min, x_min+self.settings['module/height'], y_min+poly_height)
+            
+    #         x_min += self.settings['layout/post2post']
+
+    #         if x_min > self.polygon.bounds[2]:
+    #             break
+
+    #         #calculate intersection
+    #         strip_intersection = None
+    #         try:
+    #             strip_intersection = self.polygon.intersection(strip_poly)
+    #         except Exception:
+    #             pass
+
+    #         if strip_intersection is None or strip_intersection.is_empty:
+    #             continue
+            
+    #         if strip_intersection.geom_type == "MultiPolygon":
+    #             for poly in strip_intersection:
+    #                 new_strip = StripPoly.StripPoly(strip_poly, poly, self)
+    #                 new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
+    #                 self.strips.append(new_strip)
+    #         elif strip_intersection.geom_type == "Polygon":
+    #             new_strip = StripPoly.StripPoly(strip_poly, strip_intersection, self)
+    #             new_strip.setLeftNeighbour(self.strips[-1]) if len(self.strips) > 1 else False
+    #             self.strips.append(new_strip)
+                                
+
+    #     #set right neighbours
+    #     print("--|assigning right neighbours") if self.settings['debug'] == True else False 
+    #     for i,e in enumerate(self.strips[:-1]):
+    #         e.setRightNeighbour(self.strips[i+1])
+
+
+                       
+
+
+
+
+
+
+
 
 
 

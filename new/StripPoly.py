@@ -8,17 +8,52 @@
 # import numpy as np
 from shapely import geometry
 
-#NEW CLASS TO CLEAN
+#TODO WIP - NEW CLASS TO CLEAN
 
 class StripPoly:
 
-    def __init__(self, minx=-1, miny=-1, maxx=1, maxy=1, strip_id=-1, settings=None):
+    def __init__(self, 
+                minx = -1, 
+                miny = -1, 
+                maxx = 1, 
+                maxy = 1, 
+                strip_id  = -1, 
+                settings  = None,
+                master_poly = None
+                ):
         #TODO docustring
         #TODO validation of dimensions i.e. xright>xleft etc
         #Inputs are valid, create box
         self.box_poly = geometry.box(minx, miny, maxx, maxy)
         self.strip_id = strip_id
         self.settings = settings
+        self.intersect_polys = []
+
+        #Now calculate the intersection with the master polygon (land area)
+        temp_intersection = self.box_poly.intersection(master_poly)
+        #Check for no intersection
+        if temp_intersection is None or temp_intersection.is_empty:
+            return
+        #Check for multipolygon (meaning this strip has multiple sections)
+        if temp_intersection.geom_type == "MultiPolygon":
+            for x in temp_intersection:
+                self.intersect_polys.append(x)
+        #Else it it is a single polygon
+        else:
+            self.intersect_polys.append(temp_intersection)
+        #TODO do we care about left and right neighbours anymore? can use index
+
+        
+
+
+
+
+
+
+
+
+
+
 
 
 
