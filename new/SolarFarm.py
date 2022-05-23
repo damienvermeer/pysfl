@@ -121,10 +121,11 @@ class SolarFarm:
         #     im.save('test.jpg', quality=95)
         # else:
         plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
+        plt.plot(*self._original_polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
-            plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
-            # for x in strip.intersect_polys:
-            #     plt.plot(*x.exterior.xy,'g',alpha=0.2)
+            # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
+            for x in strip.intersect_polys:
+                plt.plot(*x.exterior.xy,'g',alpha=0.2)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
 
@@ -169,7 +170,9 @@ class SolarFarm:
         if self.settings['solar']['rows']['portrait-mount']:
             row_width = self.settings['solar']['module']['dim-width']
         else:
-            row_width = self.settings['solar']['module']['dim-length']                    
+            row_width = self.settings['solar']['module']['dim-length']  
+        #Handle if multiple modules up/down (like 2-up portrait trackers)
+        row_width *= self.settings['solar']['rows']['n-modules-updown']                  
         #Now create the strips
         for strip_id,xcoord in enumerate(strip_xcoords):
             #The strip generates its own intersections with self.polygon
@@ -192,6 +195,12 @@ class SolarFarm:
         #Generate a 'priority list', typically in order of length
         #This plist is then sent to each strip and each strip handles iteslf
         #With how many rows to add, or road nodes to add etc
+        #Identify the longest intersection poly width
+        max_intpoly_length = max(
+                                [x.add_solar_rows(calc_max_only=True) 
+                                for x in self.strips]
+                                )
+        
 
 
 
@@ -524,7 +533,7 @@ class SolarFarm:
 
 
 
-coords = [(0,0),(500,0),(500,500),(0,250)]
+coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
 sftest.generate_debug_plot()

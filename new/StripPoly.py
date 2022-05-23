@@ -7,6 +7,7 @@
 # import matplotlib.pyplot as plt
 # import numpy as np
 from shapely import geometry
+import numpy as np
 
 #TODO WIP - NEW CLASS TO CLEAN
 
@@ -36,14 +37,45 @@ class StripPoly:
             return
         #Check for multipolygon (meaning this strip has multiple sections)
         if temp_intersection.geom_type == "MultiPolygon":
-            for x in temp_intersection:
+            for x in list(temp_intersection.geoms):
                 self.intersect_polys.append(x)
         #Else it it is a single polygon
         else:
             self.intersect_polys.append(temp_intersection)
         #TODO do we care about left and right neighbours anymore? can use index
 
+    def add_solar_rows(self, calc_max_only=False, row_priority_list = []):
+        #TODO doc string
+        #If calc_max_only, we only idenfiy the maximum available space
+        #We dont yet fill.
+        if calc_max_only: lengths = []
+        #returns the maximum length of all of its intersect poly
+        for intersect_poly in self.intersect_polys:
+            #Find y centroid
+            centroidy = intersect_poly.centroid.xy[1][0]
+            #Get a sorted list of all the y coordinates of the intersect poly
+            temp_list = list(intersect_poly.exterior.coords)
+            ylist = np.array(sorted([y[1] for y in temp_list]))
+            #Create the masks based on gt/lt the y centroid
+            ytop_mask = np.array([y > centroidy for y in ylist], dtype=np.bool)
+            ybottom_mask = np.array([y < centroidy for y in ylist], dtype=np.bool)
+            #Calculate the ytop (lowest upper bound) and ybottom 
+            # (highest lower bound) for this intersection polygon
+            ytop = min(ylist[ytop_mask])
+            ybottom = max(ylist[ybottom_mask])
+            if calc_max_only: 
+                lengths.append(ytop-ybottom)
+                continue
+            #TODO continue with row allocation
         
+        if calc_max_only:
+            #Handle case if there are no intersection polys here
+            if lengths: return max(lengths)
+            else: return 0
+            
+
+
+
 
 
 

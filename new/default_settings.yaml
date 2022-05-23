@@ -6,19 +6,19 @@ project:
 #Overall details for the solar farm site
 site:
   azimuth: 0 #angle from true north for rows, set to 0 for no rotation
-  setback: 0 #meters to set rows back from edge, set to 0 for no setback
+  setback: 10 #meters to set rows back from edge, set to 0 for no setback
 
 #Configuration for roads within the solar farm
 roads:
   perimeter:
     road-width: 5 #m, width of perimeter roadway, set to 0 if not required
     clear-width: 8 #m, width of clearway for road, must be >=road-width
-    turn-radius: #m, minimum turn radius of the roadway. 0=no smoothing
+    turn-radius: 0 #m, minimum turn radius of the roadway. 0=no smoothing
 
 solar:
   spacing:
     post-to-post: 6 #m, spacing between center of solar row and its neighbour
-    edge-offset: 20 #m, one-off shift for all solar rows from edge
+    edge-offset: 0 #m, one-off shift for all solar rows from edge
   module:
     dim-length: 2 #m, long side of module length
     dim-width: 1 #m, short side of module length
@@ -29,14 +29,17 @@ solar:
     portrait-mount: true
     types:
       - name: 'Three string row'
+        id: 0
         strings-on-row: 3 #number of strings on this row total
         space-between-modules: 0.03 #m, space between adjacent rows
         extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
       - name: 'Two string row'
+        id: 1
         strings-on-row: 2 #number of strings on this row total
         space-between-modules: 0.03 #m, space between adjacent rows
         extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
       - name: 'Single string row'
+        id: 2
         strings-on-row: 1 #number of strings on this row total
         space-between-modules: 0.03 #m, space between adjacent rows
         extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)      
