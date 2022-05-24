@@ -1,5 +1,6 @@
 import math
 import copy
+import re
 
 from shapely.geometry import Polygon
 # from shapely.ops import *
@@ -192,14 +193,93 @@ class SolarFarm:
                 ("Solar farm cannot be generated, no rows could be generated " 
                 ", confirm correct land scale, solar module sizing & spacing"
                 ))
-        #Generate a 'priority list', typically in order of length
-        #This plist is then sent to each strip and each strip handles iteslf
-        #With how many rows to add, or road nodes to add etc
-        #Identify the longest intersection poly width
+        #Prepare to generate solar layout
+        #Get the max length of the strip intersection polygon
+        #So we know where to stop the iteration
         max_intpoly_length = max(
                                 [x.add_solar_rows(calc_max_only=True) 
                                 for x in self.strips]
                                 )
+        #how am i going to do this?
+        #maybe - iterate over each of the layout templates
+        #create a dict with the total length and the arrangement
+        #making the solarfarm do this just seems strange though
+        #the level of calculation overhead to get the strip to do it is pretty low
+        #maybe just tell the strip to go with the settings it already has
+        #start with the first item, assume 1 instance and calculate the length
+            #if too long, continue to next one
+            #if not too long, add it to the 'apply' and continue calculating
+            #if we get to too long of an iteration, apply the 'apply' to the strip
+            #if we run out of items, assume nothing fits 
+
+
+        
+        
+        #Generate the expanded layout list now we know the max length
+        self.expanded_layout_list = []
+        for layout in self.settings['solar']['rows']['layout-templates']:
+            #Split on square brackets, only one square bracket per row
+            if '[' in layout and ']' in layout:
+                #There is a square bracket to expand
+                layout_start, layout_temp = layout.split('[')
+                layout_loop, layout_end = layout_temp.split(']')
+                #Loop over the square brackets until the length is greater
+                #than the maximum poly length
+                exp_count = 1
+                row_types = self.settings['solar']['rows']['types']
+                while True:
+                    #Create the layout code
+                    layout_code = (layout_start 
+                                + layout_loop*exp_count 
+                                + layout_end)
+                    #Calculate its length
+                    length = 0
+                    for char in layout_code:
+                        if char is 'r':
+                            #TODO road
+                            pass
+                        else:
+                            #TODO validate, assume is char
+                            inst_row = 0
+                            #TODO fix inst_row = index where id is char 
+                            instance_length = (inst_row['strings-on-row']
+                                                *
+
+
+#SOLAR ROW length is
+#dim-XXXX*strings-on-row*string-length + extra-space
+# + space-between-modules*(dim-module*strings-on-row-1)
+#if  portrait, its dim-width, else its dim-length
+#then need to handle spaces between rows, and spaces between rows and roads
+
+
+
+                    self.expanded_layout_list.append(
+                        {
+                            'layout_code' : layout_code
+                            'length' : 
+
+
+
+                        }
+
+
+
+
+                    )
+
+
+
+
+
+
+            layout = re.split(r'(?:\[|\])', layout)
+            #Remove empty sequences??
+            
+            print(layout)
+
+        
+
         
 
 
@@ -536,7 +616,7 @@ class SolarFarm:
 coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
-sftest.generate_debug_plot()
+# sftest.generate_debug_plot()
 
     # def scaleFarmBoundary(self, scale):
     #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
