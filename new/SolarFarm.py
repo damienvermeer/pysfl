@@ -305,11 +305,11 @@ class SolarFarm:
                     else:
                         #TODO validate, assume is char
                         length += self._internal_calc_row_length(char)
-                        #Check if length is too long
-                        if length < max_intpoly_length:
-                            #Store as a valid option
-                            self.expanded_layout_list.append(layout)
-                            self.expanded_length_list.append(length)
+                #Check if length is too long
+                if length < max_intpoly_length:
+                    #Store as a valid option
+                    self.expanded_layout_list.append(layout)
+                    self.expanded_length_list.append(length)
         #Each strip now uses expanded_layout_list and expanded_length_list
         #to create the solar rows
         for strip in self.strips:
