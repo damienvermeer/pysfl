@@ -77,6 +77,7 @@ class SolarFarm:
 
         #internal class instance variables declaration
         self.strips = []
+        self.assets = []
 
          
     def replace_settings(self, settings):
@@ -127,8 +128,62 @@ class SolarFarm:
             # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
             for x in strip.intersect_polys:
                 plt.plot(*x.exterior.xy,'g',alpha=0.2)
+        for asset in self.assets:
+            plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
+
+    def _internal_convert_idchar_to_row_settings(self,idchar):
+        """
+        Converts a single id char to a row settings dict.
+        Internal to generate funciton use only
+
+        :param idchar: A string of length one equal to the row id
+        :type setting_key: str
+        """
+        #Validate input
+        if len(idchar) != 1:
+            raise SolarFarmDataValidationError(
+            ("Was expecting single char to be passed to convert_idchar" 
+            f", got \'{idchar}\' which is not a single char"
+            ))
+        #Get a list of all row settings
+        all_rsettings =  self.settings['solar']['rows']['types']
+        for row in all_rsettings:
+            #Check for a match
+            if row['id'] == idchar: return row
+        #If we get here we could not find a match
+        raise SolarFarmDataValidationError(
+            f"Could not match row id char \'{idchar}\' to any row"
+            )
+        
+    def _internal_calc_row_length(self,idchar):
+        #TODO docustring
+        #Convert ID char to row settings
+        rsettings = self._internal_convert_idchar_to_row_settings(idchar)
+        #Use dim-width if portrait, else use dim-length
+        if self.settings['solar']['rows']['portrait-mount']:
+            mod_length = 'dim-width'
+        else:
+            mod_length = 'dim-length'
+        #Calculate and return the length of this segment
+        return (
+                #Module side * num modules per string * num strings
+                self.settings['solar']['module'][mod_length]
+                * self.settings['solar']['strings']['mods-per-string']
+                * rsettings['strings-on-row']
+                #And extra space, once off per row
+                + rsettings['extra-space']
+                #One less module as there are N-1 spaces between N modules
+                + rsettings['space-between-modules']
+                * (
+                    self.settings['solar']['strings']['mods-per-string']
+                    * rsettings['strings-on-row']
+                    - 1
+                )
+        )
+
+
 
 
 
@@ -183,8 +238,7 @@ class SolarFarm:
                                             maxx = xcoord + row_width,
                                             maxy = self.polygon.bounds[3],
                                             strip_id = strip_id,
-                                            settings = self.settings,
-                                            master_poly = self.polygon
+                                            super_solarfarm = self
                                             )
                                 )
         #Check we have some strips to process
@@ -217,6 +271,7 @@ class SolarFarm:
         
         #Generate the expanded layout list now we know the max length
         self.expanded_layout_list = []
+        self.expanded_length_list = []
         for layout in self.settings['solar']['rows']['layout-templates']:
             #Split on square brackets, only one square bracket per row
             if '[' in layout and ']' in layout:
@@ -226,7 +281,7 @@ class SolarFarm:
                 #Loop over the square brackets until the length is greater
                 #than the maximum poly length
                 exp_count = 1
-                row_types = self.settings['solar']['rows']['types']
+                # row_types = self.settings['solar']['rows']['types']
                 while True:
                     #Create the layout code
                     layout_code = (layout_start 
@@ -235,50 +290,50 @@ class SolarFarm:
                     #Calculate its length
                     length = 0
                     for char in layout_code:
-                        if char is 'r':
+                        if char == 'r':
                             #TODO road
                             pass
                         else:
                             #TODO validate, assume is char
-                            inst_row = 0
-                            #TODO fix inst_row = index where id is char 
-                            instance_length = (inst_row['strings-on-row']
-                                                *
+                            length += self._internal_calc_row_length(char)
+                    #Check if length is too long
+                    if length < max_intpoly_length:
+                        #Store as valid and repeat the while true loop
+                        #With the next iteration up (i.e. [3r]3 = 3r3 valid, 
+                        # try 3r3r3)
+                        exp_count += 1
+                        self.expanded_layout_list.append(layout_code)
+                        self.expanded_length_list.append(length)
+                    else:
+                        #This is longer than the poly, no more iters needed
+                        break  
+            else:
+                #This is a non-iterative layout option, so check if it is 
+                #shorter than max length and if so add it
+                length = 0
+                for char in layout:
+                    if char == 'r':
+                        #TODO road
+                        pass
+                    else:
+                        #TODO validate, assume is char
+                        length += self._internal_calc_row_length(char)
+                        #Check if length is too long
+                        if length < max_intpoly_length:
+                            #Store as a valid option
+                            self.expanded_layout_list.append(layout)
+                            self.expanded_length_list.append(length)
+        #Each strip now uses expanded_layout_list and expanded_length_list
+        #to create the solar rows
+        for strip in self.strips:
+            strip.add_solar_rows(
+                                calc_max_only=False,  
+                                expanded_layout_list = self.expanded_layout_list,
+                                expanded_length_list = self.expanded_length_list,
+                                )
 
-
-#SOLAR ROW length is
-#dim-XXXX*strings-on-row*string-length + extra-space
-# + space-between-modules*(dim-module*strings-on-row-1)
-#if  portrait, its dim-width, else its dim-length
-#then need to handle spaces between rows, and spaces between rows and roads
-
-
-
-                    self.expanded_layout_list.append(
-                        {
-                            'layout_code' : layout_code
-                            'length' : 
-
-
-
-                        }
-
-
-
-
-                    )
-
-
-
-
-
-
-            layout = re.split(r'(?:\[|\])', layout)
-            #Remove empty sequences??
             
-            print(layout)
 
-        
 
         
 
@@ -613,10 +668,11 @@ class SolarFarm:
 
 
 
+# coords = [(0,0), (0,2000), (2000,2000), (2000,1500), (1000,750), (1000,500), (2000,250), (2000,0)]
 coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
-# sftest.generate_debug_plot()
+sftest.generate_debug_plot()
 
     # def scaleFarmBoundary(self, scale):
     #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)

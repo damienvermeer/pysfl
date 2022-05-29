@@ -8,6 +8,7 @@
 # import numpy as np
 from shapely import geometry
 import numpy as np
+import SolarRow
 
 #TODO WIP - NEW CLASS TO CLEAN
 
@@ -19,19 +20,22 @@ class StripPoly:
                 maxx = 1, 
                 maxy = 1, 
                 strip_id  = -1, 
-                settings  = None,
-                master_poly = None
+                super_solarfarm = None
                 ):
         #TODO docustring
         #TODO validation of dimensions i.e. xright>xleft etc
         #Inputs are valid, create box
         self.box_poly = geometry.box(minx, miny, maxx, maxy)
+        self.minx = minx
+        self.maxx = maxx
         self.strip_id = strip_id
-        self.settings = settings
+        self.super_solarfarm = super_solarfarm
+        self.settings = super_solarfarm.settings
+        self.master_poly = super_solarfarm.polygon
         self.intersect_polys = []
 
         #Now calculate the intersection with the master polygon (land area)
-        temp_intersection = self.box_poly.intersection(master_poly)
+        temp_intersection = self.box_poly.intersection(self.master_poly)
         #Check for no intersection
         if temp_intersection is None or temp_intersection.is_empty:
             return
@@ -44,7 +48,11 @@ class StripPoly:
             self.intersect_polys.append(temp_intersection)
         #TODO do we care about left and right neighbours anymore? can use index
 
-    def add_solar_rows(self, calc_max_only=False, row_priority_list = []):
+    def add_solar_rows(self, 
+                        calc_max_only=False,  
+                        expanded_layout_list = [],
+                        expanded_length_list = [],
+                        ):
         #TODO doc string
         #If calc_max_only, we only idenfiy the maximum available space
         #We dont yet fill.
@@ -66,8 +74,50 @@ class StripPoly:
             if calc_max_only: 
                 lengths.append(ytop-ybottom)
                 continue
-            #TODO continue with row allocation
-        
+            else:
+                #Solar row allocation. We know that the maximum available len
+                # is ytop-ybottom
+                maxlength = ytop - ybottom
+                #Generate the resiudal length list, this is all lengths
+                #subtracted the maxlength, with all negative values set to
+                #pos infinity. The min of this list is the biggest row that
+                #will fit in this space.
+                residual_length_list = maxlength - expanded_length_list
+                residual_length_list[residual_length_list < 0] = np.inf
+                #Find the min of this list, which is the residual i.e. the 
+                #length in m spare between the row length and max length
+                residual = np.min(residual_length_list)
+                #TODO use residual for offset
+                #Get this index of this occurance so we can get the matching
+                #row id code
+                row_idcode = expanded_layout_list[
+                                                np.argmin(residual_length_list)
+                                                ]
+                #Now add assets as per the code
+                #Check if min is np.inf, this means nothing fits
+                if residual == np.inf:
+                    continue #Stop as nothing will fit in this section
+                row_start_y = ytop #TODO handle top middle bottom, only top done so far
+                for char in row_idcode:
+                    if char == 'r':
+                        #TODO road
+                        pass
+                    else:
+                        #TODO validate, assume is char
+                        rlength = self.super_solarfarm._internal_calc_row_length(char)
+                        self.super_solarfarm.assets.append(
+                            SolarRow.SolarRow(
+                                    idchar = char,
+                                    settings = self.super_solarfarm.settings,
+                                    minx = self.minx, 
+                                    miny = row_start_y - rlength, 
+                                    maxy = row_start_y, 
+                                    maxx = self.maxx, 
+                                    )
+                                )
+                        #Subtract length from row_start_y
+                        row_start_y -= rlength
+
         if calc_max_only:
             #Handle case if there are no intersection polys here
             if lengths: return max(lengths)
