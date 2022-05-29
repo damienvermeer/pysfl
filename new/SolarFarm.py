@@ -129,7 +129,10 @@ class SolarFarm:
             for x in strip.intersect_polys:
                 plt.plot(*x.exterior.xy,'g',alpha=0.2)
         for asset in self.assets:
-            plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
+            if asset.type == 'solar_row':
+                plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
+            elif asset.type == 'road':
+                plt.plot(asset.x, asset.y,'b*',alpha=0.5)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
 
@@ -193,6 +196,8 @@ class SolarFarm:
 
         :param ?????
         """  
+        #DEBUG only rescale
+        self.polygon = affinity.scale(self.polygon, xfact=2, yfact=2)
         #Move centroid to origin to handle rotating
         self.polygon = affinity.translate(self.polygon, 
                                         xoff=-self.polygon.centroid.xy[0][0], 
@@ -214,19 +219,18 @@ class SolarFarm:
         #(If set) generate perimeter road
         if self.settings['roads']['perimeter'] != 0:
             pass #TODO implement
-        #Create strips, note the polygon has been resized by offset already
-        strip_xcoords = np.arange(
-                        self.polygon.bounds[0],
-                        self.polygon.bounds[2],
-                        self.settings['solar']['spacing']['post-to-post']
-                        ) + self.settings['solar']['spacing']['edge-offset']
-
-        #Generate a StripPoly for each strip based on the xcoords.
-        #First calculate how wide each strip needs to be
+        #Calculate how wide each strip needs to be
         if self.settings['solar']['rows']['portrait-mount']:
             row_width = self.settings['solar']['module']['dim-width']
         else:
             row_width = self.settings['solar']['module']['dim-length']  
+        #Create strips, note the polygon has been resized by offset already
+        strip_xcoords = np.arange(
+                        self.polygon.bounds[0] + row_width,
+                        self.polygon.bounds[2],
+                        self.settings['solar']['spacing']['post-to-post']
+                        ) + self.settings['solar']['spacing']['edge-offset']
+        #Generate a StripPoly for each strip based on the xcoords.
         #Handle if multiple modules up/down (like 2-up portrait trackers)
         row_width *= self.settings['solar']['rows']['n-modules-updown']                  
         #Now create the strips
@@ -254,21 +258,6 @@ class SolarFarm:
                                 [x.add_solar_rows(calc_max_only=True) 
                                 for x in self.strips]
                                 )
-        #how am i going to do this?
-        #maybe - iterate over each of the layout templates
-        #create a dict with the total length and the arrangement
-        #making the solarfarm do this just seems strange though
-        #the level of calculation overhead to get the strip to do it is pretty low
-        #maybe just tell the strip to go with the settings it already has
-        #start with the first item, assume 1 instance and calculate the length
-            #if too long, continue to next one
-            #if not too long, add it to the 'apply' and continue calculating
-            #if we get to too long of an iteration, apply the 'apply' to the strip
-            #if we run out of items, assume nothing fits 
-
-
-        
-        
         #Generate the expanded layout list now we know the max length
         self.expanded_layout_list = []
         self.expanded_length_list = []
@@ -291,8 +280,7 @@ class SolarFarm:
                     length = 0
                     for char in layout_code:
                         if char == 'r':
-                            #TODO road
-                            pass
+                            length += self.settings['roads']['perimeter']['clear-width']
                         else:
                             #TODO validate, assume is char
                             length += self._internal_calc_row_length(char)
@@ -313,8 +301,7 @@ class SolarFarm:
                 length = 0
                 for char in layout:
                     if char == 'r':
-                        #TODO road
-                        pass
+                        length += self.settings['roads']['perimeter']['clear-width']
                     else:
                         #TODO validate, assume is char
                         length += self._internal_calc_row_length(char)

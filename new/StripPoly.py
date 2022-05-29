@@ -9,6 +9,7 @@
 from shapely import geometry
 import numpy as np
 import SolarRow
+import Node
 
 #TODO WIP - NEW CLASS TO CLEAN
 
@@ -40,13 +41,18 @@ class StripPoly:
         if temp_intersection is None or temp_intersection.is_empty:
             return
         #Check for multipolygon (meaning this strip has multiple sections)
-        if temp_intersection.geom_type == "MultiPolygon":
+        if not temp_intersection.geom_type == "Polygon":
             for x in list(temp_intersection.geoms):
-                self.intersect_polys.append(x)
+                #Ignore linestring intersections - no solar row can fit anyway
+                if x.geom_type == "LineString": continue
+                else: self.intersect_polys.append(x)
         #Else it it is a single polygon
         else:
             self.intersect_polys.append(temp_intersection)
-        #TODO do we care about left and right neighbours anymore? can use index
+        #TODO this doesnt work for strips which are partially intersected, 
+        # for example if there is a 'bite' taken out of the side of the strip
+        # it also doesnt work for strips which are partially outside the 
+        # boundary. need to do something with the left/right borders
 
     def add_solar_rows(self, 
                         calc_max_only=False,  
@@ -87,7 +93,6 @@ class StripPoly:
                 #Find the min of this list, which is the residual i.e. the 
                 #length in m spare between the row length and max length
                 residual = np.min(residual_length_list)
-                #TODO use residual for offset
                 #Get this index of this occurance so we can get the matching
                 #row id code
                 row_idcode = expanded_layout_list[
@@ -97,11 +102,28 @@ class StripPoly:
                 #Check if min is np.inf, this means nothing fits
                 if residual == np.inf:
                     continue #Stop as nothing will fit in this section
-                row_start_y = ytop #TODO handle top middle bottom, only top done so far
+                else:
+                    if self.settings['solar']['rows']['align'] == 'top':
+                        #Start at ytop
+                        row_start_y = ytop
+                    elif self.settings['solar']['rows']['align'] == 'middle':
+                        #Start at ytop-residual/2
+                        row_start_y = ytop - (residual/2)
+                    elif self.settings['solar']['rows']['align'] == 'bottom':
+                        #Start at ytop-residual
+                        row_start_y = ytop - residual
                 for char in row_idcode:
                     if char == 'r':
-                        #TODO road
-                        pass
+                        roadway_width = self.settings['roads']['perimeter']['clear-width']
+                        self.super_solarfarm.assets.append(
+                            Node.Node(
+                                    x = self.maxx - (self.maxx - self.minx)/2,
+                                    y = row_start_y - roadway_width/2,
+                                    type = 'road', #TODO enum 
+                                    )
+                                )
+                        #Subtract length from row_start_y
+                        row_start_y -= roadway_width
                     else:
                         #TODO validate, assume is char
                         rlength = self.super_solarfarm._internal_calc_row_length(char)
@@ -113,6 +135,7 @@ class StripPoly:
                                     miny = row_start_y - rlength, 
                                     maxy = row_start_y, 
                                     maxx = self.maxx, 
+                                    type = 'solar_row' #TODO ENUM
                                     )
                                 )
                         #Subtract length from row_start_y

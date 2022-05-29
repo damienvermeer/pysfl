@@ -32,11 +32,11 @@ solar:
     mods-per-string: 27
 
   rows:
-    n-modules-updown: 2
+    n-modules-updown: 1
     portrait-mount: true
     space-end-row-row: 2 #m, space between rows (not rows and roads)
     space-end-row-road: 4 #m, space between end of row and roadway
-    align: 'top' #options 'top','middle','bottom', how align rows based on strip
+    align: 'bottom' #options 'top','middle','bottom', how align rows based on strip
     types:
       - id: '3'
         strings-on-row: 3 #number of strings on this row total
@@ -56,6 +56,10 @@ solar:
       - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
       - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
       - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
       - '3' #Try 1x 3 string row
       - '2' #Try 1x 2 string row
       - '1' #Try 1x 2 string row

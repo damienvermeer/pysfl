@@ -1,28 +1,19 @@
-from shapely import geometry
+from shapely.geometry import Point
 import numpy as np
-import SolarRow
 
-class SolarRow:
+class Node:
 
     def __init__(
                 self,                                     
-                idchar = '_',
-                settings = None,
-                minx = -1, 
-                miny = -1, 
-                maxx = -1,
-                maxy = 1,
+                x = -1,
+                y = -1,
                 type = None
                 ):
         
-        #Create box strip
-        self.asset_poly = geometry.box(
-                            minx, 
-                            miny, 
-                            maxx,
-                            maxy) 
+        #Create point
+        self.x = x
+        self.y = y
         self.type = type #TODO enum
-
 
         # #create polygon strip
         # if align == 'bottom':
