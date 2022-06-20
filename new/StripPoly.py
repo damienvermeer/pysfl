@@ -1,11 +1,4 @@
-# # from shapely.geometry import *
-# from shapely import affinity
-# import Constants as c
-# from Enums import POITypes as e_p
-# from Enums import SPDataTypes as e_d
-# import operator
-# import matplotlib.pyplot as plt
-# import numpy as np
+#TODO clean up imports
 from shapely import geometry
 import numpy as np
 import SolarRow
@@ -31,7 +24,7 @@ class StripPoly:
         self.maxx = maxx
         self.strip_id = strip_id
         self.super_solarfarm = super_solarfarm
-        self.settings = super_solarfarm.settings
+        self.settings = super_solarfarm.settings #@Damien why not call super?
         self.master_poly = super_solarfarm.polygon
         self.intersect_polys = []
 
@@ -147,74 +140,6 @@ class StripPoly:
             else: return 0
             
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    #     #create polygon strip
-    #     self.polygon = 
-    #     self.intersection = intersect_poly
-    #     self.farm = farm
-    #     self.left_strip = None
-    #     self.right_strip = None
-    #     self.data = []
-    #     self.anchor = "none"
-    #     self.master_offset = -np.inf
-    #     self.recalc = False
-
-    # def setLeftNeighbour(self, strip_poly):
-    #     self.left_strip = strip_poly
-
-    # def setRightNeighbour(self, strip_poly):
-    #     self.right_strip = strip_poly       
-
-    # def getArea(self):
-    #     return self.intersection.area
-
-    # def getPerimeter(self):
-    #     return self.intersection.perimeter
-
-    # def getStripPoly(self):
-    #     return self.polygon
-
-    # def getIntersectionPoly(self, type=None):
-    #     return self.intersection
-
-    # def getLeftNeighbour(self):
-    #     return self.left_strip
-        
-    # def getRightNeighbour(self):
-    #     return self.right_strip
-
-    # def getDataArray(self):
-    #     return self.data
-
-    # def addToDataArray(self, element):
-    #     self.data.append(element)
-    #     self.sortDataArray()
-
-    # def removeFromDataArray(self, element):
-    #     self.data.remove(element)
-    #     self.sortDataArray()    #likely unneded
-
-    # def setAnchor(self, anchorin):
-    #     self.anchor = anchorin
-
-    # def sortDataArray(self, sortby='ycoord', direction='small_to_big'):
-    #     if sortby == 'ycoord':
-    #         if direction == 'small_to_big':
-    #             self.data.sort(key=operator.attrgetter('y_coord'))
 
     # def processRoadShift(self, strip_intersect_poly_in, ycoord, anchor, shiftin):
     #     for element in self.data:

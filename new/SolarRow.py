@@ -14,6 +14,9 @@ class SolarRow:
                 maxy = 1,
                 type = None
                 ):
+        """
+        TODO docustring & review inputs
+        """
         
         #Create box strip
         self.asset_poly = geometry.box(
@@ -21,42 +24,13 @@ class SolarRow:
                             miny, 
                             maxx,
                             maxy) 
-        self.type = type #TODO enum
+        self.type = type #TODO enum via asset?
 
-
-        # #create polygon strip
-        # if align == 'bottom':
-            
-        #     self.y_coord = y_corner
-        # else:
-        #     self.polygon = Polygon([Point(x_corner, y_corner),Point(x_corner+row_width, y_corner),Point(x_corner+row_width, y_corner-row_height), Point(x_corner, y_corner-row_height)])
-        #     self.y_coord = y_corner-row_height
-        # self.num_modules = num_modules
-        # self.strip = strip
-        # self.datatype = e_d.SOLAR_ROW
-        # self.settings = settings
-        
-
-    # def getPoly(self):
-    #     return self.polygon
+        #TODO needs to know how many modules there are?
+        #TODO how about drawing individual modules rather than rows?
 
     # def getNumberModules(self):
     #     return self.num_modules
-
-    # def getStrip(self):
-    #     return self.strip
-    
-    # def getDataType(self):
-    #     return self.datatype
-
-    # def getXMidpoint(self):
-    #     return (self.polygon.bounds[0] + self.polygon.bounds[2])/2
-
-    # def getYTop(self):
-    #     return self.polygon.bounds[3]
-
-    # def getYBottom(self):
-    #     return self.polygon.bounds[1]
 
     # def shift(self, x, y):
     #     self.polygon = affinity.translate(self.polygon, xoff=x, yoff=y)
