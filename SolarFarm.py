@@ -2,6 +2,7 @@
 import math
 import copy
 import re
+from pathlib import Path
 
 #External imports via pip/conda
 from shapely.geometry import Polygon
@@ -393,7 +394,7 @@ class SolarFarm:
     @staticmethod
     def generate_default_settings():
         #TODO clean up
-        with open(r"C:\Users\verme\GIT\sfl\new\default_settings.yaml", "r") as stream:
+        with open(Path(__file__).parent / "default_settings.yaml", "r") as stream:
             return yaml.safe_load(stream)
 
 
