@@ -7,7 +7,7 @@ project:
 #Overall details for the solar farm site
 site:
   azimuth: 0 #angle from true north for rows, set to 0 for no rotation
-  setback: 10 #meters to set rows back from edge, set to 0 for no setback
+  setback: 9.5 #meters to set rows back from edge, set to 0 for no setback
 
 
 #Configuration for roads within the solar farm
@@ -53,16 +53,19 @@ solar:
     layout-templates: 
     #Use the id from above, r for road. [] means repeat this if possible
     #This is in order of preference, with highest preference at top
-      - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
-      - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
-      - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      - '3' #Try 1x 3 string row
-      - '2' #Try 1x 2 string row
-      - '1' #Try 1x 2 string row
+      # - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
+      # - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
+      # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
+      # - '[33r]33' #Try 1x 3 string row
+      # - '33' #Try 1x 3 string row
+      - '[3]' #Try 1x 2 string row
+      - '[2]' #Try 1x 2 string row
+      - '[1]' #Try 1x 2 string row
+      # - '1' #Try 1x 2 string row
 
 
    
