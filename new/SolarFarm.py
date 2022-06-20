@@ -8,7 +8,7 @@ from shapely import affinity
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
-from PIL import Image, ImageDraw
+import ezdxf
 
 # import Constants as c
 import StripPoly
@@ -113,15 +113,28 @@ class SolarFarm:
         if SolarFarm.validate(temp_settings): self.settings = temp_settings  
 
     #TODO replace with something that doesnt use matplotlib!
-    def generate_debug_plot(self, pillow=False):
-        # if pillow:
-        #     im = Image.new('RGB', (1000, 1000), (255, 255, 255))
-        #     draw = ImageDraw.Draw(im)
-        #     draw.polygon(list(map(tuple, self.polygon.exterior.xy))[0], fill=(50, 50, 50), outline=(20, 20, 20))
-        #     # for strip in self.strips:
-        #     #     draw.polygon(list(map(tuple, strip.box_poly.exterior.xy))[0], fill=(100, 100, 100), outline=(255, 0, 0))
-        #     im.save('test.jpg', quality=95)
-        # else:
+    def generate_debug_plot(self, generate_dxf=False):
+        if generate_dxf:
+            #Create a new DXF document.
+            doc = ezdxf.new(dxfversion="R2010")
+            #Create new layer for boundary and add
+            doc.layers.add("BOUNDARY", color=0)
+            doc.modelspace().add_polyline2d(
+                list(self.polygon.exterior.coords),
+                dxfattribs={"layer": "BOUNDARY",
+                            'color':0}
+            )
+            #Create new layer for solar rows & add
+            doc.layers.add("SOLAR_ROWS", color=2)
+            for asset in self.assets:
+                if asset.type == 'solar_row':
+                    doc.modelspace().add_polyline2d(
+                        list(asset.asset_poly.exterior.coords),
+                        dxfattribs={"layer": "SOLAR_ROWS",
+                                    'color':2}
+                    )
+            #Save the dxf to file
+            doc.saveas("sfl_test.dxf")
         plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
         plt.plot(*self._original_polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
@@ -659,7 +672,7 @@ class SolarFarm:
 coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
-sftest.generate_debug_plot()
+sftest.generate_debug_plot(generate_dxf=True)
 
     # def scaleFarmBoundary(self, scale):
     #     self.polygon = affinity.scale(self.polygon, xfact=scale, yfact=scale)
