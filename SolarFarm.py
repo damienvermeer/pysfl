@@ -127,7 +127,7 @@ class SolarFarm:
             #Save the dxf to file
             doc.saveas("sfl_test.dxf")
         plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
-        plt.plot(*self._original_polygon.exterior.xy,'k',linestyle='dashed')
+        # plt.plot(*self._original_polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
             # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
             for x in strip.intersect_polys:
@@ -338,6 +338,26 @@ class SolarFarm:
             'mwp' : 456,
             'total_cost' : 100000
         }
+        #If rotated rotate all objects back to original
+        if abs(self.settings['site']['azimuth']) > 0:
+            #internal helper function for neater code
+            def _rotate_helper(poly_in):
+                return affinity.rotate(poly_in,
+                                -self.settings['site']['azimuth'],
+                                origin=self.polygon.centroid
+                                )
+            #Rotate the main polygon back to original
+            self.polygon = _rotate_helper(self.polygon)
+            #Rotate each strip and intersection strip to original
+            for strip in self.strips:
+                strip.box_poly = _rotate_helper(strip.box_poly) 
+                for ipoly,poly in enumerate(strip.intersect_polys):
+                    strip.intersect_polys[ipoly] = _rotate_helper(poly)
+            #Rotate assets to original
+            for asset in self.assets:
+                asset.asset_poly = _rotate_helper(asset.asset_poly)
+            
+        #all complete
         return True
 
 #STATIC METHODS OF SolarFarm CLASS BEGIN---------------------------------------
