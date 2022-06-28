@@ -3,15 +3,17 @@ import math
 import copy
 import re
 from pathlib import Path
+from datetime import datetime
 
 #External imports via pip/conda
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 # from shapely.ops import *
 from shapely import affinity
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 import ezdxf
+from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
 
 #Internal to pysfl imports
 import StripPoly
@@ -101,33 +103,98 @@ class SolarFarm:
         if SolarFarm.is_data_valid(temp_settings): self.settings = temp_settings  
 
 
-    def generate_debug_plot(self, generate_dxf=False):
+    def generate_debug_plot(self, generate_dxf=False, generate_pdf=False):
         """
         TODO docustring
         """
         if generate_dxf:
-            #Create a new DXF document.
-            doc = ezdxf.new(dxfversion="R2010")
-            #Create new layer for boundary and add
-            doc.layers.add("BOUNDARY", color=0)
+            #Calculate the biggest scale which will fit
+            #To do this, find the left-right and top-bottom bounding boxes...
+            #... of the main polygon & then scale to a 1:50n style
+            poly_max_vert = self.original_polygon.bounds[3] - self.original_polygon.bounds[1]
+            poly_max_horiz = self.original_polygon.bounds[2] - self.original_polygon.bounds[0]
+            dwg_max_vert = 0.240 #m, right now constant for A3, TODO make smarter?
+            dwg_max_horiz = 0.400 #m, right now constant for A3, TODO make smarter?
+            #Find the scale which best fits the dwg
+            best_scale = max(
+                                math.ceil(poly_max_vert/dwg_max_vert),
+                                math.ceil(poly_max_horiz/dwg_max_horiz)
+                            )   
+            #Scale currently is best_scale:1, which is awkward for dwgs
+            #Change to ideal_scale:1 where ideal_scale%50 = 0
+            def _helper_round_down(num, divisor): return num - (num%divisor)
+            ideal_scale = _helper_round_down(best_scale+50, 50)
+            #Load DXF template
+            doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
+            #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
+            x,y = box(*self.polygon.bounds).centroid.xy
+            #Helper function for repeating the translate and rescale
+            def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0]):
+                poly_in = affinity.translate(  
+                                            poly_in, 
+                                            xoff=-xoff, 
+                                            yoff=-yoff
+                                        )
+                poly_in = affinity.scale(
+                                        poly_in, 
+                                        xfact=1000/ideal_scale, 
+                                        yfact=1000/ideal_scale,
+                                        origin=(0,0)
+                                    )     
+                return list(poly_in.exterior.coords)               
+            #Draw site boundary
             doc.modelspace().add_polyline2d(
-                list(self.polygon.exterior.coords),
-                dxfattribs={"layer": "BOUNDARY",
-                            'color':0}
+                _helper_prepare_dwg_polygon(self.original_polygon),
+                dxfattribs={"layer": "SITE_BOUNDARY",
+                            'color':3}
             )
-            #Create new layer for solar rows & add
-            doc.layers.add("SOLAR_ROWS", color=2)
+            doc.modelspace().add_polyline2d(
+                _helper_prepare_dwg_polygon(self.polygon),
+                dxfattribs={"layer": "INTERNAL_BOUNDARY",
+                            'color':4}
+            )
+            #Draw assets
             for asset in self.assets:
                 if asset.type == 'solar_row':
                     doc.modelspace().add_polyline2d(
-                        list(asset.asset_poly.exterior.coords),
+                        _helper_prepare_dwg_polygon(asset.asset_poly),
                         dxfattribs={"layer": "SOLAR_ROWS",
                                     'color':2}
                     )
-            #Save the dxf to file
+            #Find/replace title block text using helper function
+            def _dxf_helper_find_replace(text_in):
+                match_dict = {
+                                "<REV>":self.settings['dxf']['first_rev_id'],
+                                "<REVTEXT>":self.settings['dxf']['first_rev_line'],
+                                "<DATE>":datetime.today().strftime('%d-%m-%Y'),
+                                "<PROJNAME>":self.settings['project']['name'],    
+                                "<LOCATION>":self.settings['dxf']['location'],                                                           
+                                "<DESIGNER>":self.settings['dxf']['designer'],                                                           
+                                "<NOTES>":self.settings['dxf']['notes'],                                                           
+                                "<DWGNO>":self.settings['dxf']['dwg_number'],
+                                "<SCALE>":f"1:{ideal_scale:.0f}",
+                                "<S10>":f"{(ideal_scale*10/1000):.1f}",
+                                "<S20>":f"{(ideal_scale*20/1000):.1f}",
+                                "<S30>":f"{(ideal_scale*30/1000):.1f}",
+                                "<S40>":f"{(ideal_scale*40/1000):.1f}",
+                                "<S50>":f"{(ideal_scale*50/1000):.1f}",
+                                }
+                for find,match in match_dict.items():
+                    text_in = text_in.replace(find,match) #Use dict as a f/r key
+                return text_in
+            #Find/replace each text and mtext in the file
+            for e in doc.modelspace().query("TEXT"):
+                e.dxf.text = _dxf_helper_find_replace(e.dxf.text)
+            for e in doc.modelspace().query("MTEXT"):
+                e.text = _dxf_helper_find_replace(e.text)
+
             doc.saveas("sfl_test.dxf")
-        plt.plot(*self.polygon.exterior.xy,'k',linestyle='dashed')
-        # plt.plot(*self._original_polygon.exterior.xy,'k',linestyle='dashed')
+            if generate_pdf: ezdxfmatplotlib.qsave(doc.modelspace(), 'sfl_test.pdf')
+            return
+        
+        #If not dxf, generate a matplotlib representation
+        plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
+        plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
             # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
             for x in strip.intersect_polys:
@@ -198,26 +265,26 @@ class SolarFarm:
 
         :param ????? TODO
         """  
-        #DEBUG only rescale TODO revert or create option
-        self.polygon = affinity.scale(self.polygon, xfact=2, yfact=2)
-        #Move centroid to origin to handle rotating
+        #Save a backup copy of original polygon perimeter for setback plotting
+        self.original_polygon = copy.deepcopy(self.polygon)
+        #Apply boundary offset by shrinking the polygon
+        if self.settings['site']['setback'] > 0:
+            self.polygon = self.polygon.buffer(-10,join_style=2)#self.settings['site']['setback'])
+        #Move both original_polygon and polygon to the polygon centroid
+        #This is to allow easy rotating
+        self.original_polygon = affinity.translate(self.original_polygon, 
+                                        xoff=-self.polygon.centroid.xy[0][0], 
+                                        yoff=-self.polygon.centroid.xy[1][0]
+                                        )
         self.polygon = affinity.translate(self.polygon, 
                                         xoff=-self.polygon.centroid.xy[0][0], 
                                         yoff=-self.polygon.centroid.xy[1][0]
                                         )
-        #Save a backup copy of original polygon perimeter for setback plotting
-        self._original_polygon = copy.deepcopy(self.polygon)
         #Set site azimuth (rotate entire polygon)
         self.polygon = affinity.rotate(self.polygon,
                                         self.settings['site']['azimuth'],
                                         origin=self.polygon.centroid
                                         )
-        #Apply boundary offset by shrinking the polygon
-        if self.settings['site']['setback'] > 0:
-            self.polygon = self.polygon.buffer(
-                                            -self.settings['site']['setback'],
-                                            single_sided=True
-                                            )
         #(If set) generate perimeter road
         if self.settings['roads']['perimeter'] != 0:
             pass #TODO implement
@@ -414,7 +481,7 @@ class SolarFarm:
     @staticmethod
     def generate_default_settings():
         #TODO clean up
-        with open(Path(__file__).parent / "default_settings.yaml", "r") as stream:
+        with open(Path(__file__).parent / "templates/default_settings.yaml", "r") as stream:
             return yaml.safe_load(stream)
 
 
@@ -429,4 +496,4 @@ class SolarFarm:
 coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
 sftest.generate()
-sftest.generate_debug_plot(generate_dxf=True)
+sftest.generate_debug_plot(generate_dxf=True, generate_pdf=True)

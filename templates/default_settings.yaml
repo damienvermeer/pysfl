@@ -7,7 +7,7 @@ project:
 #Overall details for the solar farm site
 site:
   azimuth: 0 #angle from true north for rows, set to 0 for no rotation
-  setback: 9.5 #meters to set rows back from edge, set to 0 for no setback
+  setback: 15 #meters to set rows back from edge, set to 0 for no setback
 
 
 #Configuration for roads within the solar farm
@@ -67,5 +67,11 @@ solar:
       - '[1]' #Try 1x 2 string row
       # - '1' #Try 1x 2 string row
 
-
-   
+#Used for cad file export  
+dxf:
+  location: "Address of solar farm"
+  designer: "Solary McSolarFace"
+  notes: ""
+  first_rev_id: "A"
+  first_rev_line: "FIRST REVISION"
+  dwg_number: "ESF-0-001"
