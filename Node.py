@@ -11,8 +11,7 @@ class Node:
                 ):
         
         #Create point
-        self.x = x
-        self.y = y
+        self.asset_poly = Point(x,y)
         self.type = type #TODO enum
 
         # #create polygon strip
