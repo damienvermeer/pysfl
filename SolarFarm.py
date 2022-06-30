@@ -1,19 +1,19 @@
-#Built-in imports
+#-------------------------------------------------------------------------------
+#pysfl - original version by Damien Vermeer
+#-------------------------------------------------------------------------------
+#Note heavyweight imports are within individual functions for aws lambda speed
+#Imports begin:
 import math
 import copy
-import re
 from pathlib import Path
 from datetime import datetime
 
 #External imports via pip/conda
-from shapely.geometry import Polygon, box
-# from shapely.ops import *
+from shapely.geometry import Polygon
+from shapely.geometry import box as Box
 from shapely import affinity
 import numpy as np
 import yaml
-import matplotlib.pyplot as plt
-import ezdxf
-from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
 
 #Internal to pysfl imports
 import StripPoly
@@ -108,6 +108,9 @@ class SolarFarm:
         TODO docustring
         """
         if generate_dxf:
+            #imports for dxf handling (here to speed up aws lambda)
+            import ezdxf
+            from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
             #Calculate the biggest scale which will fit
             #To do this, find the left-right and top-bottom bounding boxes...
             #... of the main polygon & then scale to a 1:50n style
@@ -127,7 +130,7 @@ class SolarFarm:
             #Load DXF template
             doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
             #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
-            x,y = box(*self.polygon.bounds).centroid.xy
+            x,y = Box(*self.polygon.bounds).centroid.xy
             #Helper function for repeating the translate and rescale
             def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0]):
                 poly_in = affinity.translate(  
@@ -193,6 +196,7 @@ class SolarFarm:
             return
         
         #If not dxf, generate a matplotlib representation
+        import matplotlib.pyplot as plt
         plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
         plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
         for strip in self.strips:
