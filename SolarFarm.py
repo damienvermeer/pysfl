@@ -70,7 +70,6 @@ class SolarFarm:
         self.strips = []
         self.assets = []
         self.layout_generated = False
-        self.pretty_generated = False
          
     def replace_settings(self, settings):
         """
@@ -104,14 +103,14 @@ class SolarFarm:
         #TODO review with dict implementation
         if SolarFarm.is_data_valid(temp_settings): self.settings = temp_settings  
 
-    def render(self, path, pretty=True, override_name=None):
+    def render(self, path, override_name=None):
         """
         Generates a visual representation of the solar farm generated
 
         :param path: A folder or file path, generates dxf/pdf
         :type path: str
-        :param pretty: Render using 'pretty' mode, requires generate(pretty=True)
-        :type setting_key: bool
+        :param override_name: Use this filename instead of dwg-number in settings
+        :type setting_key: str
         :rtype: None
         :raises SolarFarmGenericError: If solar farm is not generated.
         """
@@ -120,12 +119,6 @@ class SolarFarm:
             raise SolarFarmGenericError(
                     ("Solar farm must be generated before rendering, use " 
                     ".generate() before calling render."
-                    ))
-        #If pretty=True, check if solar farm generated also with pretty
-        if pretty and not self.pretty_generated:
-            raise SolarFarmGenericError(
-                    ("Solar farm must be generated using pretty=True to render " 
-                    "using pretty mode."
                     ))
         # #Check if path is valid before generating
         if not Path(path).exists():
@@ -184,7 +177,7 @@ class SolarFarm:
         #Draw assets
         for asset in self.assets:
             if asset.asset_type == 'solar_row':
-                if not pretty:
+                if not self.settings['render']['pretty-solar-modules']:
                     doc.modelspace().add_polyline2d(
                         _helper_prepare_dwg_polygon(asset.asset_poly),
                         dxfattribs={"layer": "SOLAR_ROWS",
@@ -204,14 +197,14 @@ class SolarFarm:
 
         #Prepare find/replace match_dict for dxf generation
         match_dict = {
-                "<REV>":self.settings['dxf']['first_rev_id'],
-                "<REVTEXT>":self.settings['dxf']['first_rev_line'],
+                "<REV>":self.settings['render']['first-rev-id'],
+                "<REVTEXT>":self.settings['render']['first-rev-line'],
                 "<DATE>":datetime.today().strftime('%d-%m-%Y'),
                 "<PROJNAME>":self.settings['project']['name'],    
-                "<LOCATION>":self.settings['dxf']['location'],                                                           
-                "<DESIGNER>":self.settings['dxf']['designer'],                                                           
-                "<NOTES>":self.settings['dxf']['notes'],                                                           
-                "<DWGNO>":self.settings['dxf']['dwg_number'],
+                "<LOCATION>":self.settings['render']['location'],                                                           
+                "<DESIGNER>":self.settings['render']['designer'],                                                           
+                "<NOTES>":self.settings['render']['notes'],                                                           
+                "<DWGNO>":self.settings['render']['dwg-number'],
                 "<SCALE>":f"1:{ideal_scale:.0f}",
                 "<MWP>":f"{self.results_data['MWp']} MWp"
                 }
@@ -226,7 +219,7 @@ class SolarFarm:
         if override_name:
             output_name = path + "\\" + override_name
         else:
-            output_name = path + "\\" + self.settings['dxf']['dwg_number'] 
+            output_name = path + "\\" + self.settings['render']['dwg-number'] 
         #Save DXF and PDF
         doc.saveas(output_name+".dxf")
         ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf", dpi=800)
@@ -299,7 +292,7 @@ class SolarFarm:
                 )
         )
 
-    def generate(self, pretty=True):
+    def generate(self):
         """
         Generates a single solar farm layout
 
@@ -431,7 +424,6 @@ class SolarFarm:
                                 calc_max_only=False,  
                                 expanded_layout_list = self.expanded_layout_list,
                                 expanded_length_list = self.expanded_length_list,
-                                pretty = pretty
                                 )
         #TODO generate perimeter road if set
         #TODO merge road nodes into one
@@ -457,7 +449,6 @@ class SolarFarm:
             
         #all complete
         self.layout_generated = True
-        self.pretty_generated = pretty
         #Get total number of modules
         n_modules = 0
         for asset in self.assets:

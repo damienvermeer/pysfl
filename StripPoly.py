@@ -51,7 +51,6 @@ class StripPoly:
                         calc_max_only=False,  
                         expanded_layout_list = [],
                         expanded_length_list = [],
-                        pretty = True
                         ):
         #TODO doc string
         #If calc_max_only, we only idenfiy the maximum available space
@@ -138,7 +137,6 @@ class StripPoly:
                                     maxy = row_start_y, 
                                     maxx = self.maxx, 
                                     asset_type = 'solar_row', #TODO ENUM
-                                    pretty = pretty,
                                     )
                                 )
                         #Subtract length from row_start_y

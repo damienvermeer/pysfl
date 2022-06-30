@@ -68,10 +68,11 @@ solar:
       # - '1' #Try 1x 2 string row
 
 #Used for cad file export  
-dxf:
+render:
   location: "Address of solar farm"
   designer: "Solary McSolarFace"
   notes: ""
-  first_rev_id: "A"
-  first_rev_line: "FIRST REVISION"
-  dwg_number: "ESF-0-001"
+  first-rev-id: "A"
+  first-rev-line: "FIRST REVISION" #TODO damien replace with list
+  dwg-number: "ESF-0-001" #Also filename of exported files
+  pretty-solar-modules: false #(True=)Render each solar panel, (False=) only rows

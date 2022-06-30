@@ -12,7 +12,6 @@ class SolarRow:
                 maxx = -1,
                 maxy = 1,
                 asset_type = None,
-                pretty=True
                 ):
         """
         TODO docustring & review inputs
@@ -35,8 +34,8 @@ class SolarRow:
                 * self.super.settings['solar']['strings']['mods-per-string']
                 }
         self.sub_asset_polys = []
-        #Generate extra polygons to render a pretty version 
-        if pretty:
+        #Generate extra polygons to render a pretty version if enabled 
+        if self.super.settings['render']['pretty-solar-modules']:
             #Get right side length to use
             if self.super.settings['solar']['rows']['portrait-mount']:
                 panel_vert_dist = self.super.settings['solar']['module']['dim-width']
