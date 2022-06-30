@@ -26,6 +26,12 @@ class SolarFarmDataValidationError(Exception):
     Used whenever invalid validation is identified in pysfl
     Custom class used to distinguish from other errors
     """
+class SolarFarmGenericError(Exception):
+    """
+    SolarFarm class Generic Error
+    Used whenever a solar farm state is detected as invalid during generation
+    Custom class used to distinguish from other errors
+    """
 #-------------------------------------------------------------------------------
 class SolarFarm:
 
@@ -48,18 +54,22 @@ class SolarFarm:
                                             dictionary does not match the 
                                             YAML representation.
         """
-        #Check polygon is valid before applying
+        #Check polygon is valid before applying, is_data_valid raises ex if not
         if SolarFarm.is_data_valid(poly_coords, datatype='polygon'):
             self.polygon = Polygon(poly_coords)
         #Check settings is valid before applying, use default if not provided
+        #Note is_data_valid raises ex if is not valid
         if settings == 'default':
-            self.settings = SolarFarm.generate_default_settings()
+            self.settings = SolarFarm.load_default_settings()
         elif SolarFarm.is_data_valid(settings, datatype='settings'):
+            #TODO validate settings here
             self.settings = settings
 
         #internal class instance variables declaration
         self.strips = []
         self.assets = []
+        self.layout_generated = False
+        self.pretty_generated = False
          
     def replace_settings(self, settings):
         """
@@ -93,114 +103,138 @@ class SolarFarm:
         #TODO review with dict implementation
         if SolarFarm.is_data_valid(temp_settings): self.settings = temp_settings  
 
+    def render(self, path, pretty=False, override_name=None):
+        """
+        Generates a visual representation of the solar farm generated
 
-    def generate_debug_plot(self, generate_dxf=False, generate_pdf=False):
+        :param path: A folder or file path, generates dxf/pdf
+        :type path: str
+        :param pretty: Render using 'pretty' mode, requires generate(pretty=True)
+        :type setting_key: bool
+        :rtype: None
+        :raises SolarFarmGenericError: If solar farm is not generated.
         """
-        TODO docustring
-        """
-        if generate_dxf:
-            #imports for dxf handling (here to speed up aws lambda)
-            import ezdxf
-            from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
-            #Calculate the biggest scale which will fit
-            #To do this, find the left-right and top-bottom bounding boxes...
-            #... of the main polygon & then scale to a 1:50n style
-            poly_max_vert = self.original_polygon.bounds[3] - self.original_polygon.bounds[1]
-            poly_max_horiz = self.original_polygon.bounds[2] - self.original_polygon.bounds[0]
-            dwg_max_vert = 0.240 #m, right now constant for A3, TODO make smarter?
-            dwg_max_horiz = 0.400 #m, right now constant for A3, TODO make smarter?
-            #Find the scale which best fits the dwg
-            best_scale = max(
-                                math.ceil(poly_max_vert/dwg_max_vert),
-                                math.ceil(poly_max_horiz/dwg_max_horiz)
-                            )   
-            #Scale currently is best_scale:1, which is awkward for dwgs
-            #Change to ideal_scale:1 where ideal_scale%50 = 0
-            def _helper_round_down(num, divisor): return num - (num%divisor)
-            ideal_scale = _helper_round_down(best_scale+50, 50)
-            #Load DXF template
-            doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
-            #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
-            x,y = Box(*self.polygon.bounds).centroid.xy
-            #Helper function for repeating the translate and rescale
-            def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0]):
-                poly_in = affinity.translate(  
-                                            poly_in, 
-                                            xoff=-xoff, 
-                                            yoff=-yoff
-                                        )
-                poly_in = affinity.scale(
+        #Check solar farm layout is generated
+        if not self.layout_generated:
+            raise SolarFarmGenericError(
+                    ("Solar farm must be generated before rendering, use " 
+                    ".generate() before calling render."
+                    ))
+        #If pretty=True, check if solar farm generated also with pretty
+        if pretty and not self.pretty_generated:
+            raise SolarFarmGenericError(
+                    ("Solar farm must be generated using pretty=True to render " 
+                    "using pretty mode."
+                    ))
+        # #Check if path is valid before generating
+        if not Path(path).exists():
+            raise SolarFarmGenericError(
+                    (f"File path \'{path}\' passed to .render() is not valid."
+                    ))
+        #Generate cad file and export
+        import ezdxf
+        from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
+        #Calculate the biggest scale which will fit
+        #To do this, find the left-right and top-bottom bounding boxes...
+        #... of the main polygon & then scale to a 1:50n style
+        poly_max_vert = self.original_polygon.bounds[3] - self.original_polygon.bounds[1]
+        poly_max_horiz = self.original_polygon.bounds[2] - self.original_polygon.bounds[0]
+        dwg_max_vert = 0.240 #m, only one template for now so hard coded
+        dwg_max_horiz = 0.400 #m, only one template for now so hard coded
+        #Find the scale which best fits the dwg
+        best_scale = max(
+                            math.ceil(poly_max_vert/dwg_max_vert),
+                            math.ceil(poly_max_horiz/dwg_max_horiz)
+                        )   
+        #Scale currently is best_scale:1, which is awkward for dwgs
+        #Change to ideal_scale:1 where ideal_scale%50 = 0
+        def _helper_round_down(num, divisor): return num - (num%divisor)
+        ideal_scale = _helper_round_down(best_scale+50, 50)
+        #TODO the 50 above should eventually be an optional arg
+        #Load DXF template
+        doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
+        #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
+        x,y = Box(*self.polygon.bounds).centroid.xy
+        #Helper function for repeating the translate and rescale
+        def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0]):
+            poly_in = affinity.translate(  
                                         poly_in, 
-                                        xfact=1000/ideal_scale, 
-                                        yfact=1000/ideal_scale,
-                                        origin=(0,0)
-                                    )     
-                return list(poly_in.exterior.coords)               
-            #Draw site boundary
-            doc.modelspace().add_polyline2d(
-                _helper_prepare_dwg_polygon(self.original_polygon),
-                dxfattribs={"layer": "SITE_BOUNDARY",
-                            'color':3}
-            )
-            doc.modelspace().add_polyline2d(
-                _helper_prepare_dwg_polygon(self.polygon),
-                dxfattribs={"layer": "INTERNAL_BOUNDARY",
-                            'color':4}
-            )
-            #Draw assets
-            for asset in self.assets:
-                if asset.type == 'solar_row':
+                                        xoff=-xoff, 
+                                        yoff=-yoff
+                                    )
+            poly_in = affinity.scale(
+                                    poly_in, 
+                                    xfact=1000/ideal_scale, 
+                                    yfact=1000/ideal_scale,
+                                    origin=(0,0)
+                                )     
+            return list(poly_in.exterior.coords)               
+        #Draw site boundary
+        doc.modelspace().add_polyline2d(
+            _helper_prepare_dwg_polygon(self.original_polygon),
+            dxfattribs={"layer": "SITE_BOUNDARY",
+                        'color':3}
+        )
+        doc.modelspace().add_polyline2d(
+            _helper_prepare_dwg_polygon(self.polygon),
+            dxfattribs={"layer": "INTERNAL_BOUNDARY",
+                        'color':4}
+        )
+        #Draw assets
+        for asset in self.assets:
+            if asset.type == 'solar_row':
+                if not pretty:
                     doc.modelspace().add_polyline2d(
                         _helper_prepare_dwg_polygon(asset.asset_poly),
                         dxfattribs={"layer": "SOLAR_ROWS",
                                     'color':2}
                     )
-            #Find/replace title block text using helper function
-            def _dxf_helper_find_replace(text_in):
-                match_dict = {
-                                "<REV>":self.settings['dxf']['first_rev_id'],
-                                "<REVTEXT>":self.settings['dxf']['first_rev_line'],
-                                "<DATE>":datetime.today().strftime('%d-%m-%Y'),
-                                "<PROJNAME>":self.settings['project']['name'],    
-                                "<LOCATION>":self.settings['dxf']['location'],                                                           
-                                "<DESIGNER>":self.settings['dxf']['designer'],                                                           
-                                "<NOTES>":self.settings['dxf']['notes'],                                                           
-                                "<DWGNO>":self.settings['dxf']['dwg_number'],
-                                "<SCALE>":f"1:{ideal_scale:.0f}",
-                                "<S10>":f"{(ideal_scale*10/1000):.1f}",
-                                "<S20>":f"{(ideal_scale*20/1000):.1f}",
-                                "<S30>":f"{(ideal_scale*30/1000):.1f}",
-                                "<S40>":f"{(ideal_scale*40/1000):.1f}",
-                                "<S50>":f"{(ideal_scale*50/1000):.1f}",
-                                }
-                for find,match in match_dict.items():
-                    text_in = text_in.replace(find,match) #Use dict as a f/r key
-                return text_in
-            #Find/replace each text and mtext in the file
-            for e in doc.modelspace().query("TEXT"):
-                e.dxf.text = _dxf_helper_find_replace(e.dxf.text)
-            for e in doc.modelspace().query("MTEXT"):
-                e.text = _dxf_helper_find_replace(e.text)
+                else:
+                    #TODO pretty draw
+                    pass
+        #Prepare find/replace match_dict for dxf generation
+        match_dict = {
+                "<REV>":self.settings['dxf']['first_rev_id'],
+                "<REVTEXT>":self.settings['dxf']['first_rev_line'],
+                "<DATE>":datetime.today().strftime('%d-%m-%Y'),
+                "<PROJNAME>":self.settings['project']['name'],    
+                "<LOCATION>":self.settings['dxf']['location'],                                                           
+                "<DESIGNER>":self.settings['dxf']['designer'],                                                           
+                "<NOTES>":self.settings['dxf']['notes'],                                                           
+                "<DWGNO>":self.settings['dxf']['dwg_number'],
+                "<SCALE>":f"1:{ideal_scale:.0f}",
+                }
+        #Add in scale bar match_dict items
+        for x in range(10,60):
+            match_dict[f"<S{x}>"] = f"{(ideal_scale*x/1000):.1f}"  
+        #Find/replace each text in the file
+        for elm in doc.modelspace().query("TEXT"):
+            for find,match in match_dict.items():
+                elm.dxf.text = elm.dxf.text.replace(find,match) #Use dict as a f/r key
+        #Prepare to export
+        if override_name:
+            output_name = path + "\\" + override_name
+        else:
+            output_name = path + "\\" + self.settings['dxf']['dwg_number'] 
+        #Save DXF and PDF
+        doc.saveas(output_name+".dxf")
+        ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf")
 
-            doc.saveas("sfl_test.dxf")
-            if generate_pdf: ezdxfmatplotlib.qsave(doc.modelspace(), 'sfl_test.pdf')
-            return
-        
-        #If not dxf, generate a matplotlib representation
-        import matplotlib.pyplot as plt
-        plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
-        plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
-        for strip in self.strips:
-            # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
-            for x in strip.intersect_polys:
-                plt.plot(*x.exterior.xy,'g',alpha=0.2)
-        for asset in self.assets:
-            if asset.type == 'solar_row':
-                plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
-            elif asset.type == 'road':
-                plt.plot(asset.x, asset.y,'b*',alpha=0.5)
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
+        # #If not dxf, generate a matplotlib representation
+        # import matplotlib.pyplot as plt
+        # plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
+        # plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
+        # for strip in self.strips:
+        #     # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
+        #     for x in strip.intersect_polys:
+        #         plt.plot(*x.exterior.xy,'g',alpha=0.2)
+        # for asset in self.assets:
+        #     if asset.type == 'solar_row':
+        #         plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
+        #     elif asset.type == 'road':
+        #         plt.plot(asset.x, asset.y,'b*',alpha=0.5)
+        # plt.gca().set_aspect('equal', adjustable='box')
+        # plt.show()
 
     def _internal_convert_idchar_to_row_settings(self,idchar):
         """
@@ -419,6 +453,7 @@ class SolarFarm:
                 asset.asset_poly = _rotate_helper(asset.asset_poly)
             
         #all complete
+        self.layout_generated = True
         return True
 
 #STATIC METHODS OF SolarFarm CLASS BEGIN---------------------------------------
@@ -471,7 +506,7 @@ class SolarFarm:
             pass
 
     @staticmethod
-    def generate_default_settings():
+    def load_default_settings():
         #TODO clean up
         with open(Path(__file__).parent / "templates/default_settings.yaml", "r") as stream:
             return yaml.safe_load(stream)
@@ -482,5 +517,6 @@ class SolarFarm:
 # coords = [(0,0), (0,2000), (2000,2000), (2000,1500), (1000,750), (1000,500), (2000,250), (2000,0)]
 coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
 sftest = SolarFarm(coords)
+
 sftest.generate()
-sftest.generate_debug_plot(generate_dxf=True, generate_pdf=True)
+sftest.render(r"C:\Users\verme\Desktop\test")
