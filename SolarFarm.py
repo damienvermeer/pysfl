@@ -7,6 +7,7 @@ import math
 import copy
 from pathlib import Path
 from datetime import datetime
+import time
 
 #External imports via pip/conda
 from shapely.geometry import Polygon
@@ -212,6 +213,7 @@ class SolarFarm:
                 "<NOTES>":self.settings['dxf']['notes'],                                                           
                 "<DWGNO>":self.settings['dxf']['dwg_number'],
                 "<SCALE>":f"1:{ideal_scale:.0f}",
+                "<MWP>":f"{self.results_data['MWp']} MWp"
                 }
         #Add in scale bar match_dict items
         for x in range(10,60):
@@ -303,6 +305,7 @@ class SolarFarm:
 
         :param ????? TODO
         """  
+        stime_generate = time.time()
         #Save a backup copy of original polygon perimeter for setback plotting
         self.original_polygon = copy.deepcopy(self.polygon)
         #Apply boundary offset by shrinking the polygon
@@ -359,12 +362,9 @@ class SolarFarm:
                 ", confirm correct land scale, solar module sizing & spacing"
                 ))
         #Prepare to generate solar layout
-        #Get the max length of the strip intersection polygon
+        #Get the maxy-miny polygon bounds
         #So we know where to stop the iteration
-        max_intpoly_length = max(
-                                [x.add_solar_rows(calc_max_only=True) 
-                                for x in self.strips]
-                                )
+        max_intpoly_length = self.polygon.bounds[2] - self.polygon.bounds[0]
         #Generate the expanded layout list now we know the max length
         self.expanded_layout_list = []
         self.expanded_length_list = []
@@ -431,25 +431,11 @@ class SolarFarm:
                                 calc_max_only=False,  
                                 expanded_layout_list = self.expanded_layout_list,
                                 expanded_length_list = self.expanded_length_list,
-                                pretty = True
+                                pretty = pretty
                                 )
-        #TODO review below actions in line with pipeline
-        #generate perimeter road if set
-        #place main substation area
-        #create strips
-        #create rows
-        #create roads
-        #place inverters
-        #place combiner boxes
-        #place string cables
-        #place hv cables
-        #cleanup (check for duplicates etc)
-        #return results data
-        results_data = {
-            'generation_time': 0,
-            'n_modules' : 123,
-            'mwp' : 456,
-        }
+        #TODO generate perimeter road if set
+        #TODO merge road nodes into one
+        #TODO inverters? maybe in future
         #If rotated rotate all objects back to original
         if abs(self.settings['site']['azimuth']) > 0:
             #internal helper function for neater code
@@ -472,7 +458,22 @@ class SolarFarm:
         #all complete
         self.layout_generated = True
         self.pretty_generated = pretty
-        return True
+        #Get total number of modules
+        n_modules = 0
+        for asset in self.assets:
+            if asset.asset_type == 'solar_row':
+                n_modules += asset.asset_properties['n_modules']
+        megawatt_peak = (n_modules
+                        * self.settings['solar']['module']['power-stc']) / 1e6
+                        #Convert Wp to MWp
+        #Return results data
+        etime_generate = time.time()
+        self.results_data = {
+            'generation_time_us': etime_generate - stime_generate,
+            'n_modules' : n_modules,
+            'MWp' : megawatt_peak,
+        }
+        return self.results_data
 
 #STATIC METHODS OF SolarFarm CLASS BEGIN---------------------------------------
     @staticmethod
