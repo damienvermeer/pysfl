@@ -177,7 +177,7 @@ class SolarFarm:
         #Draw assets
         for asset in self.assets:
             if asset.asset_type == 'solar_row':
-                if not self.settings['render']['pretty-solar-modules']:
+                if not self.settings['render']['render-all-modules']:
                     doc.modelspace().add_polyline2d(
                         _helper_prepare_dwg_polygon(asset.asset_poly),
                         dxfattribs={"layer": "SOLAR_ROWS",
@@ -201,17 +201,15 @@ class SolarFarm:
                 "<REVTEXT>":self.settings['render']['first-rev-line'],
                 "<DATE>":datetime.today().strftime('%d-%m-%Y'),
                 "<PROJNAME>":self.settings['project']['name'],    
-                "<COORDS>":self.settings['site']['loc-coords'],                                                           
-                "<DESIGNER>":self.settings['render']['designer'],                                                           
-                "<NOTES>":self.settings['render']['notes'],                                                           
+                "<COORDS>":self.settings['site']['loc-coords'],                                                                                                                
                 "<DWGNO>":self.settings['render']['dwg-number'],
                 "<SCALE>":f"1:{ideal_scale:.0f}",
                 "<MWP>":f"{self.results_data['MWp']:.3f}",
-                "<NMODULES>":f"{self.results_data['n_modules']}",
-                "<MOD_MANUFACTURER>":self.settings['solar']['module']['manufacturer'],
-                "<MOD_MODEL>":self.settings['solar']['module']['model'],
-                "<MOD_P>":f"{self.settings['solar']['module']['power-stc']:.1f}",
-                "<N_MODS_IN_STRING>":f"{self.settings['solar']['strings']['mods-per-string']}",
+                "<NMODULES>":f"{self.results_data['n_modules']:,}",
+                "<MOD_MANUFACTURER>":self.settings['module']['manufacturer'],
+                "<MOD_MODEL>":self.settings['module']['model'],
+                "<MOD_P>":f"{self.settings['module']['power-stc']:.1f}",
+                "<N_MODS_IN_STRING>":f"{self.settings['strings']['mods-per-string']}",
                 "<AZIMUTH>":f"{self.settings['site']['azimuth']}° T",
                 "<GCR>":f"{self.results_data['gcr']:.1f}",
                 }
@@ -262,7 +260,7 @@ class SolarFarm:
             f", got \'{idchar}\' which is not a single char"
             ))
         #Get a list of all row settings
-        all_rsettings =  self.settings['solar']['rows']['types']
+        all_rsettings =  self.settings['rows']['types']
         for row in all_rsettings:
             #Check for a match
             if row['id'] == idchar: return row
@@ -278,22 +276,22 @@ class SolarFarm:
         #Convert ID char to row settings
         rsettings = self._internal_convert_idchar_to_row_settings(idchar)
         #Use dim-width if portrait, else use dim-length
-        if self.settings['solar']['rows']['portrait-mount']:
+        if self.settings['rows']['portrait-mount']:
             mod_length = 'dim-width'
         else:
             mod_length = 'dim-length'
         #Calculate and return the length of this segment
         return (
                 #Module side * num modules per string * num strings
-                self.settings['solar']['module'][mod_length]
-                * self.settings['solar']['strings']['mods-per-string']
+                self.settings['module'][mod_length]
+                * self.settings['strings']['mods-per-string']
                 * rsettings['strings-on-row']
                 #And extra space, once off per row
                 + rsettings['extra-space']
                 #One less module as there are N-1 spaces between N modules
                 + rsettings['space-between-modules']
                 * (
-                    self.settings['solar']['strings']['mods-per-string']
+                    self.settings['strings']['mods-per-string']
                     * rsettings['strings-on-row']
                     - 1
                 )
@@ -330,19 +328,19 @@ class SolarFarm:
         if self.settings['roads']['perimeter'] != 0:
             pass #TODO implement
         #Calculate how wide each strip needs to be
-        if self.settings['solar']['rows']['portrait-mount']:
-            row_width = self.settings['solar']['module']['dim-width']
+        if self.settings['rows']['portrait-mount']:
+            row_width = self.settings['module']['dim-width']
         else:
-            row_width = self.settings['solar']['module']['dim-length']  
+            row_width = self.settings['module']['dim-length']  
         #Create strips, note the polygon has been resized by offset already
         strip_xcoords = np.arange(
                         self.polygon.bounds[0] + row_width,
                         self.polygon.bounds[2],
-                        self.settings['solar']['spacing']['post-to-post']
-                        ) + self.settings['solar']['spacing']['edge-offset']
+                        self.settings['rows']['spacing']['post-to-post']
+                        ) + self.settings['rows']['spacing']['edge-offset']
         #Generate a StripPoly for each strip based on the xcoords.
         #Handle if multiple modules up/down (like 2-up portrait trackers)
-        row_width *= self.settings['solar']['rows']['n-modules-updown']                  
+        row_width *= self.settings['rows']['n-modules-updown']                  
         #Now create the strips
         for strip_id,xcoord in enumerate(strip_xcoords):
             #The strip generates its own intersections with self.polygon
@@ -368,7 +366,7 @@ class SolarFarm:
         #Generate the expanded layout list now we know the max length
         self.expanded_layout_list = []
         self.expanded_length_list = []
-        for layout in self.settings['solar']['rows']['layout-templates']:
+        for layout in self.settings['rows']['layout-templates']:
             #Split on square brackets, only one square bracket per row
             if '[' in layout and ']' in layout:
                 #There is a square bracket to expand
@@ -377,7 +375,6 @@ class SolarFarm:
                 #Loop over the square brackets until the length is greater
                 #than the maximum poly length
                 exp_count = 1
-                # row_types = self.settings['solar']['rows']['types']
                 while True:
                     #Create the layout code
                     layout_code = (layout_start 
@@ -395,9 +392,9 @@ class SolarFarm:
                         if not ichar == len(layout_code)-1:
                             next_char = layout_code[ichar+1]
                             if next_char == 'r':
-                                length += self.settings['solar']['rows']['space-end-row-road']
+                                length += self.settings['rows']['space-end-row-road']
                             else:
-                                length += self.settings['solar']['rows']['space-end-row-row']
+                                length += self.settings['rows']['space-end-row-row']
                     #Check if length is too long
                     if length < max_intpoly_length:
                         #Store as valid and repeat the while true loop
@@ -462,12 +459,12 @@ class SolarFarm:
             if asset.asset_type == 'solar_row':
                 n_modules += asset.asset_properties['n_modules']
         megawatt_peak = (n_modules
-                        * self.settings['solar']['module']['power-stc']) / 1e6
+                        * self.settings['module']['power-stc']) / 1e6
                         #Convert Wp to MWp
         #Calculate ground coverage ratio (GCR)
         gcr =   (n_modules 
-                 * self.settings['solar']['module']['dim-length']
-                 * self.settings['solar']['module']['dim-width']
+                 * self.settings['module']['dim-length']
+                 * self.settings['module']['dim-width']
                 ) / self.original_polygon.area * 100 #convert to percentage
         #Return results data
         etime_generate = time.time()

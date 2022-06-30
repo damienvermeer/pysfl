@@ -31,16 +31,16 @@ class SolarRow:
         self.asset_properties = {
                 'n_strings' : self.row_settings['strings-on-row'],
                 'n_modules' : self.row_settings['strings-on-row']
-                * self.super.settings['solar']['strings']['mods-per-string']
+                * self.super.settings['strings']['mods-per-string']
                 }
         self.sub_asset_polys = []
         #Generate extra polygons to render a pretty version if enabled 
-        if self.super.settings['render']['pretty-solar-modules']:
+        if self.super.settings['render']['render-all-modules']:
             #Get right side length to use
-            if self.super.settings['solar']['rows']['portrait-mount']:
-                panel_vert_dist = self.super.settings['solar']['module']['dim-width']
+            if self.super.settings['rows']['portrait-mount']:
+                panel_vert_dist = self.super.settings['module']['dim-width']
             else:
-                panel_vert_dist = self.super.settings['solar']['module']['dim-length']  
+                panel_vert_dist = self.super.settings['module']['dim-length']  
             #Check if single axis tracker
             if True: #change to if single-axis tracker
                 self.sub_asset_polys = []

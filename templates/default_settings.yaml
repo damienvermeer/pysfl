@@ -1,15 +1,13 @@
 #SFL YAML configuration
 #default configuration
 project:
-  name: 'Example Solar Farm'
-
+  name: 'Example Solar Farm' #Name of the site, used on renders and reports
 
 #Overall details for the solar farm site
 site:
   azimuth: 0 #angle from true north for rows, set to 0 for no rotation
   setback: 15 #meters to set rows back from edge, set to 0 for no setback
   loc-coords: "12 km NE of Exampletown" #Address or lat/long for the solar farm
-
 
 #Configuration for roads within the solar farm
 roads:
@@ -18,63 +16,61 @@ roads:
     clear-width: 8 #m, width of clearway for road, must be >=road-width
     turn-radius: 0 #m, minimum turn radius of the roadway. 0=no smoothing
 
+#Define the parameters of the solar PV module to use
+module:
+  manufacturer: "Trina Solar" #Mod manufacturer, used for PDF rendering of layout
+  model: "TSM-DEG21C.20" #Mod model, used for PDF rendering of layout
+  dim-length: 2.384 #m, long side of module length
+  dim-width: 1.303 #m, short side of module length
+  power-stc: 665 #W, STC power of the pv module being used
 
-solar:
-  module:
-    manufacturer: "Trina Solar" #Mod manufacturer, used for PDF rendering of layout
-    model: "TSM-DEG21C.20" #Mod model, used for PDF rendering of layout
-    dim-length: 2.384 #m, long side of module length
-    dim-width: 1.303 #m, short side of module length
-    power-stc: 665 #W, STC power of the pv module being used
-  
+#Define the string length
+strings:
+  mods-per-string: 27 #number of modules per string, used for row definition
+
+#Define row spacing & the types of rows to be used
+rows:
   spacing:
     post-to-post: 6 #m, spacing between center of solar row and its neighbour
     edge-offset: 0 #m, one-off shift for all solar rows from edge
-  
-  strings:
-    mods-per-string: 27
+  n-modules-updown: 1 #number of modules 'stacked' perpindicular to row
+  portrait-mount: true #when looking perpindicular to the row
+  space-end-row-row: 2 #m, space between end of row and start of next row
+  space-end-row-road: 4 #m, space between end of row and roadway
+  align: 'bottom' #options 'top','middle','bottom', how align rows based on strip
+  types:
+    - id: '3' #can be any character, recommend using # of strings for simplicty
+      strings-on-row: 3 #number of strings on this row total
+      space-between-modules: 0.03 #m, space between adjacent modules
+      extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
+    - id: '2' #can be any character, recommend using # of strings for simplicty
+      strings-on-row: 2 #number of strings on this row total
+      space-between-modules: 0.03 #m, space between adjacent modules
+      extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
+    - id: '1' #can be any character, recommend using # of strings for simplicty
+      strings-on-row: 1 #number of strings on this row total
+      space-between-modules: 0.03 #m, space between adjacent modules
+      extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
+  layout-templates: 
+  #Use the id from above, r for road. [] means repeat this if possible
+  #This is in order of preference, with highest preference at top
+    # - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
+    # - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
+    # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    # # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    # # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    # # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    # # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    # - '[33r]33' #Try 1x 3 string row
+    # - '33' #Try 1x 3 string row
+    - '[3]' #Try 1x 2 string row
+    - '[2]' #Try 1x 2 string row
+    - '[1]' #Try 1x 2 string row
+    # - '1' #Try 1x 2 string row
 
-  rows:
-    n-modules-updown: 1
-    portrait-mount: true
-    space-end-row-row: 2 #m, space between rows (not rows and roads)
-    space-end-row-road: 4 #m, space between end of row and roadway
-    align: 'bottom' #options 'top','middle','bottom', how align rows based on strip
-    types:
-      - id: '3'
-        strings-on-row: 3 #number of strings on this row total
-        space-between-modules: 0.03 #m, space between adjacent rows
-        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
-      - id: '2'
-        strings-on-row: 2 #number of strings on this row total
-        space-between-modules: 0.03 #m, space between adjacent rows
-        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
-      - id: '1'
-        strings-on-row: 1 #number of strings on this row total
-        space-between-modules: 0.03 #m, space between adjacent rows
-        extra-space: 3.2 #m, one-off addition to row length (for slew motor etc)
-    layout-templates: 
-    #Use the id from above, r for road. [] means repeat this if possible
-    #This is in order of preference, with highest preference at top
-      # - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
-      # - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
-      # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
-      # - '[33r]33' #Try 1x 3 string row
-      # - '33' #Try 1x 3 string row
-      - '[3]' #Try 1x 2 string row
-      - '[2]' #Try 1x 2 string row
-      - '[1]' #Try 1x 2 string row
-      # - '1' #Try 1x 2 string row
-
-#Used for cad file export  
+#Specify other information for the CAD/PDF render
 render:
-  designer: "Solary McSolarFace"
-  notes: ""
-  first-rev-id: "A"
+  first-rev-id: "A" #TODO damien replace with list
   first-rev-line: "FIRST REVISION" #TODO damien replace with list
-  dwg-number: "ESF-0-001" #Also filename of exported files
-  pretty-solar-modules: false #(True=)Render each solar panel, (False=) only rows
+  dwg-number: "ESF-0-001" #Also used as the filename of exported files
+  render-all-modules: false #Leave off for speed unless render final dwg

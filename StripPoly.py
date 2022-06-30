@@ -96,13 +96,13 @@ class StripPoly:
                 if residual == np.inf:
                     continue #Stop as nothing will fit in this section
                 else:
-                    if self.settings['solar']['rows']['align'] == 'top':
+                    if self.settings['rows']['align'] == 'top':
                         #Start at ytop
                         row_start_y = ytop
-                    elif self.settings['solar']['rows']['align'] == 'middle':
+                    elif self.settings['rows']['align'] == 'middle':
                         #Start at ytop-residual/2
                         row_start_y = ytop - (residual/2)
-                    elif self.settings['solar']['rows']['align'] == 'bottom':
+                    elif self.settings['rows']['align'] == 'bottom':
                         #Start at ytop-residual
                         row_start_y = ytop - residual
                 for ichar,char in enumerate(row_idcode):
@@ -112,7 +112,7 @@ class StripPoly:
                             Node.Node(
                                     x = self.maxx - (self.maxx - self.minx)/2,
                                     y = row_start_y - roadway_width/2,
-                                    type = 'road', #TODO enum 
+                                    asset_type = 'road', #TODO enum 
                                     )
                                 )
                         #Subtract length from row_start_y
@@ -124,9 +124,9 @@ class StripPoly:
                         if not ichar == 0:
                             prev_char = row_idcode[ichar-1]
                             if prev_char == 'r':
-                                row_start_y -= self.settings['solar']['rows']['space-end-row-road']
+                                row_start_y -= self.settings['rows']['space-end-row-road']
                             else:
-                                row_start_y -= self.settings['solar']['rows']['space-end-row-row']
+                                row_start_y -= self.settings['rows']['space-end-row-row']
                         #Create the solar row
                         self.super_solarfarm.assets.append(
                             SolarRow.SolarRow(
