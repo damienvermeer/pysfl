@@ -7,12 +7,12 @@ class Node:
                 self,                                     
                 x = -1,
                 y = -1,
-                type = None
+                asset_type = None
                 ):
         
         #Create point
         self.asset_poly = Point(x,y)
-        self.type = type #TODO enum
+        self.asset_type = None #TODO enum
 
         # #create polygon strip
         # if align == 'bottom':
