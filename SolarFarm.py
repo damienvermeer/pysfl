@@ -201,12 +201,19 @@ class SolarFarm:
                 "<REVTEXT>":self.settings['render']['first-rev-line'],
                 "<DATE>":datetime.today().strftime('%d-%m-%Y'),
                 "<PROJNAME>":self.settings['project']['name'],    
-                "<LOCATION>":self.settings['render']['location'],                                                           
+                "<COORDS>":self.settings['site']['loc-coords'],                                                           
                 "<DESIGNER>":self.settings['render']['designer'],                                                           
                 "<NOTES>":self.settings['render']['notes'],                                                           
                 "<DWGNO>":self.settings['render']['dwg-number'],
                 "<SCALE>":f"1:{ideal_scale:.0f}",
-                "<MWP>":f"{self.results_data['MWp']} MWp"
+                "<MWP>":f"{self.results_data['MWp']:.3f}",
+                "<NMODULES>":f"{self.results_data['n_modules']}",
+                "<MOD_MANUFACTURER>":self.settings['solar']['module']['manufacturer'],
+                "<MOD_MODEL>":self.settings['solar']['module']['model'],
+                "<MOD_P>":f"{self.settings['solar']['module']['power-stc']:.1f}",
+                "<N_MODS_IN_STRING>":f"{self.settings['solar']['strings']['mods-per-string']}",
+                "<AZIMUTH>":f"{self.settings['site']['azimuth']}° T",
+                "<GCR>":f"{self.results_data['gcr']:.1f}",
                 }
         #Add in scale bar match_dict items
         for x in range(10,60):
@@ -457,12 +464,18 @@ class SolarFarm:
         megawatt_peak = (n_modules
                         * self.settings['solar']['module']['power-stc']) / 1e6
                         #Convert Wp to MWp
+        #Calculate ground coverage ratio (GCR)
+        gcr =   (n_modules 
+                 * self.settings['solar']['module']['dim-length']
+                 * self.settings['solar']['module']['dim-width']
+                ) / self.original_polygon.area * 100 #convert to percentage
         #Return results data
         etime_generate = time.time()
         self.results_data = {
             'generation_time_us': etime_generate - stime_generate,
             'n_modules' : n_modules,
             'MWp' : megawatt_peak,
+            'gcr' : gcr,
         }
         return self.results_data
 

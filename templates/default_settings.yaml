@@ -8,6 +8,7 @@ project:
 site:
   azimuth: 0 #angle from true north for rows, set to 0 for no rotation
   setback: 15 #meters to set rows back from edge, set to 0 for no setback
+  loc-coords: "12 km NE of Exampletown" #Address or lat/long for the solar farm
 
 
 #Configuration for roads within the solar farm
@@ -20,9 +21,11 @@ roads:
 
 solar:
   module:
-    dim-length: 2 #m, long side of module length
-    dim-width: 1 #m, short side of module length
-    power-stc: 500 #W, STC power of the pv module being used
+    manufacturer: "Trina Solar" #Mod manufacturer, used for PDF rendering of layout
+    model: "TSM-DEG21C.20" #Mod model, used for PDF rendering of layout
+    dim-length: 2.384 #m, long side of module length
+    dim-width: 1.303 #m, short side of module length
+    power-stc: 665 #W, STC power of the pv module being used
   
   spacing:
     post-to-post: 6 #m, spacing between center of solar row and its neighbour
@@ -69,7 +72,6 @@ solar:
 
 #Used for cad file export  
 render:
-  location: "Address of solar farm"
   designer: "Solary McSolarFace"
   notes: ""
   first-rev-id: "A"
