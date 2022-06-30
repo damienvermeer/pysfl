@@ -29,7 +29,7 @@ class SolarFarmDataValidationError(Exception):
 #-------------------------------------------------------------------------------
 class SolarFarm:
 
-    def __init__(self, poly_coords, settings='default', cost_data='default'):
+    def __init__(self, poly_coords, settings='default'):
         """
         SolarFarm class instance constructor
 
@@ -41,15 +41,11 @@ class SolarFarm:
                         structure, which defines how the solar farm layout 
                         should be generated.
         :type settings: dict
-        :param cost_data: A cost dictionary which follows a YAML file 
-                        structure, which defines the cost of each asset within 
-                        the solar farm, used for optimisation.
-        :type cost_data: dict
         :return: A SolarFarm class instance
         :rtype: SolarFarm
         :raises SolarFarmDataValidationError: If poly_coords are not a list of
-                                            2-tuples, or the settings or cost 
-                                            data dictionaries do not match the 
+                                            2-tuples, or the settings data 
+                                            dictionary does not match the 
                                             YAML representation.
         """
         #Check polygon is valid before applying
@@ -60,11 +56,6 @@ class SolarFarm:
             self.settings = SolarFarm.generate_default_settings()
         elif SolarFarm.is_data_valid(settings, datatype='settings'):
             self.settings = settings
-        #Check cost_data is valid before applying, use default if not provided
-        if cost_data == 'default':
-            self.cost_data = SolarFarm.generate_default_cost_data()
-        elif SolarFarm.is_data_valid(cost_data, datatype='cost_data'):
-            self.cost_data = cost_data
 
         #internal class instance variables declaration
         self.strips = []
@@ -407,7 +398,6 @@ class SolarFarm:
             'generation_time': 0,
             'n_modules' : 123,
             'mwp' : 456,
-            'total_cost' : 100000
         }
         #If rotated rotate all objects back to original
         if abs(self.settings['site']['azimuth']) > 0:
@@ -479,19 +469,12 @@ class SolarFarm:
        
         if datatype == 'settings':
             pass
-        if datatype == 'cost_data':
-            pass
 
     @staticmethod
     def generate_default_settings():
         #TODO clean up
         with open(Path(__file__).parent / "templates/default_settings.yaml", "r") as stream:
             return yaml.safe_load(stream)
-
-
-    @staticmethod
-    def generate_default_cost_data():
-        return {}
 #STATIC METHODS OF SolarFarm CLASS END------------------------------------------
 
 
