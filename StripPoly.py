@@ -51,6 +51,7 @@ class StripPoly:
                         calc_max_only=False,  
                         expanded_layout_list = [],
                         expanded_length_list = [],
+                        pretty = True
                         ):
         #TODO doc string
         #If calc_max_only, we only idenfiy the maximum available space
@@ -105,7 +106,7 @@ class StripPoly:
                     elif self.settings['solar']['rows']['align'] == 'bottom':
                         #Start at ytop-residual
                         row_start_y = ytop - residual
-                for char in row_idcode:
+                for ichar,char in enumerate(row_idcode):
                     if char == 'r':
                         roadway_width = self.settings['roads']['perimeter']['clear-width']
                         self.super_solarfarm.assets.append(
@@ -120,15 +121,24 @@ class StripPoly:
                     else:
                         #TODO validate, assume is char
                         rlength = self.super_solarfarm._internal_calc_row_length(char)
+                        #Check if we need to add a road-row or row-row offset
+                        if not ichar == 0:
+                            prev_char = row_idcode[ichar-1]
+                            if prev_char == 'r':
+                                row_start_y -= self.settings['solar']['rows']['space-end-row-road']
+                            else:
+                                row_start_y -= self.settings['solar']['rows']['space-end-row-row']
+                        #Create the solar row
                         self.super_solarfarm.assets.append(
                             SolarRow.SolarRow(
                                     idchar = char,
-                                    settings = self.super_solarfarm.settings,
+                                    super = self.super_solarfarm,
                                     minx = self.minx, 
                                     miny = row_start_y - rlength, 
                                     maxy = row_start_y, 
                                     maxx = self.maxx, 
-                                    asset_type = 'solar_row' #TODO ENUM
+                                    asset_type = 'solar_row', #TODO ENUM
+                                    pretty = True,
                                     )
                                 )
                         #Subtract length from row_start_y

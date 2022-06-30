@@ -103,7 +103,7 @@ class SolarFarm:
         #TODO review with dict implementation
         if SolarFarm.is_data_valid(temp_settings): self.settings = temp_settings  
 
-    def render(self, path, pretty=False, override_name=None):
+    def render(self, path, pretty=True, override_name=None):
         """
         Generates a visual representation of the solar farm generated
 
@@ -190,8 +190,17 @@ class SolarFarm:
                                     'color':2}
                     )
                 else:
-                    #TODO pretty draw
-                    pass
+                    if len(asset.sub_asset_polys) == 0:
+                        raise SolarFarmGenericError(
+                            (f"Current strip has no pretty asset polys to render."
+                            ))
+                    for sub_asset in asset.sub_asset_polys:
+                        doc.modelspace().add_polyline2d(
+                            _helper_prepare_dwg_polygon(sub_asset),
+                            dxfattribs={"layer": "SOLAR_ROWS",
+                                        'color':2}
+                        )
+
         #Prepare find/replace match_dict for dxf generation
         match_dict = {
                 "<REV>":self.settings['dxf']['first_rev_id'],
@@ -218,7 +227,7 @@ class SolarFarm:
             output_name = path + "\\" + self.settings['dxf']['dwg_number'] 
         #Save DXF and PDF
         doc.saveas(output_name+".dxf")
-        ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf")
+        ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf", dpi=800)
 
         # #If not dxf, generate a matplotlib representation
         # import matplotlib.pyplot as plt
@@ -288,7 +297,7 @@ class SolarFarm:
                 )
         )
 
-    def generate(self):
+    def generate(self, pretty=True):
         """
         Generates a single solar farm layout
 
@@ -376,12 +385,19 @@ class SolarFarm:
                                 + layout_end)
                     #Calculate its length
                     length = 0
-                    for char in layout_code:
+                    for ichar,char in enumerate(layout_code):
                         if char == 'r':
                             length += self.settings['roads']['perimeter']['clear-width']
                         else:
                             #TODO validate, assume is char
                             length += self._internal_calc_row_length(char)
+                        #Check if we need to add a road-row or row-row offset
+                        if not ichar == len(layout_code)-1:
+                            next_char = layout_code[ichar+1]
+                            if next_char == 'r':
+                                length += self.settings['solar']['rows']['space-end-row-road']
+                            else:
+                                length += self.settings['solar']['rows']['space-end-row-row']
                     #Check if length is too long
                     if length < max_intpoly_length:
                         #Store as valid and repeat the while true loop
@@ -415,6 +431,7 @@ class SolarFarm:
                                 calc_max_only=False,  
                                 expanded_layout_list = self.expanded_layout_list,
                                 expanded_length_list = self.expanded_length_list,
+                                pretty = True
                                 )
         #TODO review below actions in line with pipeline
         #generate perimeter road if set
@@ -454,6 +471,7 @@ class SolarFarm:
             
         #all complete
         self.layout_generated = True
+        self.pretty_generated = pretty
         return True
 
 #STATIC METHODS OF SolarFarm CLASS BEGIN---------------------------------------
