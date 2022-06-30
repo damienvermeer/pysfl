@@ -128,7 +128,7 @@ class StripPoly:
                                     miny = row_start_y - rlength, 
                                     maxy = row_start_y, 
                                     maxx = self.maxx, 
-                                    type = 'solar_row' #TODO ENUM
+                                    asset_type = 'solar_row' #TODO ENUM
                                     )
                                 )
                         #Subtract length from row_start_y

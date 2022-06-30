@@ -12,7 +12,7 @@ class SolarRow:
                 miny = -1, 
                 maxx = -1,
                 maxy = 1,
-                type = None
+                asset_type = None
                 ):
         """
         TODO docustring & review inputs
@@ -24,7 +24,7 @@ class SolarRow:
                             miny, 
                             maxx,
                             maxy) 
-        self.type = type #TODO enum via asset?
+        self.asset_type = asset_type #TODO enum via asset?
 
         #TODO needs to know how many modules there are?
         #TODO how about drawing individual modules rather than rows?

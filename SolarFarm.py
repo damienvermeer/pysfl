@@ -182,7 +182,7 @@ class SolarFarm:
         )
         #Draw assets
         for asset in self.assets:
-            if asset.type == 'solar_row':
+            if asset.asset_type == 'solar_row':
                 if not pretty:
                     doc.modelspace().add_polyline2d(
                         _helper_prepare_dwg_polygon(asset.asset_poly),
@@ -229,9 +229,9 @@ class SolarFarm:
         #     for x in strip.intersect_polys:
         #         plt.plot(*x.exterior.xy,'g',alpha=0.2)
         # for asset in self.assets:
-        #     if asset.type == 'solar_row':
+        #     if asset.asset_type == 'solar_row':
         #         plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
-        #     elif asset.type == 'road':
+        #     elif asset.asset_type == 'road':
         #         plt.plot(asset.x, asset.y,'b*',alpha=0.5)
         # plt.gca().set_aspect('equal', adjustable='box')
         # plt.show()
