@@ -478,42 +478,42 @@ class SolarFarm:
 
 #STATIC METHODS OF SolarFarm CLASS BEGIN---------------------------------------
     @staticmethod
-    def is_data_valid(poly_coords, datatype='polygon'):
+    def is_data_valid(data_to_validate, datatype='polygon'):
         if datatype == 'polygon':
             #Check for a list being passed as input.
-            if not isinstance(poly_coords, list): 
+            if not isinstance(data_to_validate, list): 
                 raise SolarFarmDataValidationError(
                     ("Solar farm cannot be generated, coordinate " 
                     "points need to be in list of tuples format"
                     ))
             #Check for at least three items in the list.
-            if len(poly_coords) < 3: 
+            if len(data_to_validate) < 3: 
                 raise SolarFarmDataValidationError(
                     ("Solar farm cannot be generated, number of "
                     "coordinates passed to generator needs to be at least 3"
                     ))
             #Check that each item in the list is a tuple. 
-            if any([not isinstance(x,tuple) for x in poly_coords]): 
+            if any([not isinstance(x,tuple) for x in data_to_validate]): 
                 raise SolarFarmDataValidationError(
                     ("Solar farm cannot be generated, an item in the " 
                     "poly_coords list was not a tuple."
                     ))
             #Check if any tuple is more, or less, than 2 items long.
-            if any([len(x) != 2 for x in poly_coords]): 
+            if any([len(x) != 2 for x in data_to_validate]): 
                 raise SolarFarmDataValidationError(
                     ("Solar farm cannot be generated, a coordinate "
                     "point was identified which was not a tuple, or is not a " 
                     "tuple of 2 coordinates. Only 2 dimensions are supported."
                     ))
             #For each tuple, check that each value is numeric
-            for tup in poly_coords:
+            for tup in data_to_validate:
                 if any([not isinstance(x,(int, float)) for x  in tup]): 
                     raise SolarFarmDataValidationError(
                         ("Solar farm cannot be generated, a coordinate point "
                         f"in tuple {tup} is not a valid number."
                         ))
             #Create temp polygon and check its bounds
-            if len(Polygon(poly_coords).exterior.coords) < 2:
+            if len(Polygon(data_to_validate).exterior.coords) < 2:
                     raise SolarFarmDataValidationError(
                     ("Solar farm cannot be generated, the polygon bounds form "
                     "a straight line (dimension of poly bounds < 2)."
@@ -521,15 +521,83 @@ class SolarFarm:
             
             #If we get here validation was passed
             return True
-       
         if datatype == 'settings':
-            pass
-
+            from schema import Schema, And, Or, SchemaError
+            #Use schema to check YAML/dict is valid
+            schema = Schema(
+                {
+                    'project':{
+                        'name': str,
+                    },
+                    'site':{
+                        'azimuth': And(Or(float,int),lambda n: -360 <= n <= 360),
+                        'setback': And(Or(float,int),lambda n: n >= 0),
+                        'loc-coords': str,
+                    },
+                    'roads':{
+                        'perimeter': {
+                            'road-width': And(Or(float,int),lambda n: n >= 0),
+                            'clear-width': And(Or(float,int),lambda n: n >= 0),
+                            'turn-radius': And(Or(float,int),lambda n: n >= 0),
+                            },
+                    },
+                    'module':{
+                        'manufacturer': str,
+                        'model': str,
+                        'dim-length': And(Or(float,int),lambda n: n >= 0),
+                        'dim-width': And(Or(float,int),lambda n: n >= 0),
+                        'power-stc': And(Or(float,int),lambda n: n >= 0),
+                    },
+                    'strings':{
+                        'mods-per-string': And(int,lambda n: n >= 0),
+                    },
+                    'rows':{
+                        'spacing': {
+                            'post-to-post': And(Or(float,int),lambda n: n >= 0),
+                            'edge-offset': And(Or(float,int),lambda n: n >= 0),
+                            },
+                        'n-modules-updown': And(int,lambda n: n >= 0),
+                        'portrait-mount': bool,
+                        'space-end-row-row': And(Or(float,int),lambda n: n >= 0),
+                        'space-end-row-road': And(Or(float,int),lambda n: n >= 0),
+                        'align': lambda s: s in ('bottom', 'middle', 'top'),
+                        'types': [
+                            {
+                                'id': And(str, lambda n: len(n) ==1),
+                                'strings-on-row': And(int,lambda n: n >= 0),
+                                'space-between-modules': And(Or(float,int),lambda n: n >= 0),
+                                'extra-space': And(Or(float,int),lambda n: n >= 0),
+                            }
+                            ],
+                        'layout-templates': [str]
+                        #Damien TODO - this doesnt actually check that the 
+                        #layout-templates are in the 'id' fields above
+                    },
+                    'render':{
+                        'first-rev-id': str,
+                        'first-rev-line': str,
+                        'dwg-number': str,
+                        'render-all-modules': bool,
+                    },
+                }
+            )
+            #Check if valid schema, .validate() raises an exception if not 
+            #Catch this exception and wrap in custom exception with more details
+            try:
+                schema.validate(data_to_validate)
+                return True
+            except SchemaError as e:
+                raise SolarFarmDataValidationError(
+                ("Settings YAML/dict is not valid." 
+                f" Key/val error: \'{e}\'"
+                )) 
     @staticmethod
     def load_default_settings():
         #TODO clean up
         with open(Path(__file__).parent / "templates/default_settings.yaml", "r") as stream:
-            return yaml.safe_load(stream)
+            data_loaded = yaml.safe_load(stream)
+            if SolarFarm.is_data_valid(data_loaded, 'settings'):
+                return data_loaded
 #STATIC METHODS OF SolarFarm CLASS END------------------------------------------
 
 
