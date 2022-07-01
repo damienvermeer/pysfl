@@ -57,6 +57,8 @@ class StripPoly:
         #We dont yet fill.
         if calc_max_only: lengths = []
         #returns the maximum length of all of its intersect poly
+        #prepare to add rows
+        road_code_counter = 0
         for intersect_poly in self.intersect_polys:
             #Find y centroid
             centroidy = intersect_poly.centroid.xy[1][0]
@@ -117,10 +119,13 @@ class StripPoly:
                                         - self.settings['rows']['space-end-row-road']
                                         - roadway_width/2
                                         ),
-                                    asset_type = 'road', #TODO enum 
-                                    width = roadway_width
+                                    asset_type = 'roadnode', #TODO enum 
+                                    width = roadway_width,
+                                    code = road_code_counter,
                                     )
                                 )
+                        #increment road_code_counter
+                        road_code_counter += 1
                         #Subtract length from row_start_y
                         row_start_y -= roadway_width + self.settings['rows']['space-end-row-road']
                     else:

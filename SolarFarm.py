@@ -19,6 +19,7 @@ import yaml
 #Internal to pysfl imports
 import StripPoly
 import Node
+import Road
 
 #Class defs start
 #-------------------------------------------------------------------------------
@@ -151,7 +152,7 @@ class SolarFarm:
         #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
         x,y = Box(*self.polygon.bounds).centroid.xy
         #Helper function for repeating the translate and rescale
-        def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0]):
+        def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0], interior=False):
             poly_in = affinity.translate(  
                                         poly_in, 
                                         xoff=-xoff, 
@@ -163,6 +164,8 @@ class SolarFarm:
                                     yfact=1000/ideal_scale,
                                     origin=(0,0)
                                 )     
+            if interior:
+                return list(poly_in.coords)
             try: #TODO REVERT TEMP FOR NOW
                 return list(poly_in.exterior.coords)
             except:
@@ -198,13 +201,48 @@ class SolarFarm:
                             dxfattribs={"layer": "SOLAR_ROWS",
                                         'color':2}
                         )
+            # elif asset.asset_type == 'roadnode':
+            #     doc.modelspace().add_circle(
+            #         _helper_prepare_dwg_polygon(asset.asset_poly)[0],
+            #         asset.width/2*1000/ideal_scale,
+            #         dxfattribs={"layer": "ROAD-NODE",
+            #                     'color':6}
+            #     )
             elif asset.asset_type == 'road':
-                doc.modelspace().add_circle(
-                    _helper_prepare_dwg_polygon(asset.asset_poly)[0],
-                    asset.width/2*1000/ideal_scale,
+                #TEMP WORKAROUND
+                doc.modelspace().add_polyline2d(
+                    _helper_prepare_dwg_polygon(asset.asset_poly),
                     dxfattribs={"layer": "ROAD",
                                 'color':6}
                 )
+                #TODO remove road hatching, ezdxf doesnt support
+                # hatch = doc.modelspace().add_hatch(
+                #                 color=0,
+                #                 dxfattribs={
+                #                     "hatch_style": ezdxf.const.HATCH_STYLE_NESTED,
+                #                     # 0 = nested: ezdxf.const.HATCH_STYLE_NESTED
+                #                     # 1 = outer: ezdxf.const.HATCH_STYLE_OUTERMOST
+                #                     # 2 = ignore: ezdxf.const.HATCH_STYLE_IGNORE
+                #                 },
+                #             )
+                # hatch.paths.add_polyline_path(
+                #         _helper_prepare_dwg_polygon(asset.asset_poly),
+                #         is_closed=True,
+                #         flags=ezdxf.const.BOUNDARY_PATH_EXTERNAL,
+                #     )
+                for intpoly in asset.asset_poly.interiors:
+                    doc.modelspace().add_polyline2d(
+                        _helper_prepare_dwg_polygon(intpoly, interior=True),
+                        dxfattribs={"layer": "ROAD",
+                                    'color':6}
+                    )
+                #     hatch.paths.add_polyline_path(
+                #         _helper_prepare_dwg_polygon(intpoly, interior=True),
+                #         is_closed=True,
+                #         flags=ezdxf.const.BOUNDARY_PATH_OUTERMOST,
+                #     )
+                # hatch.set_pattern_fill("CROSS")
+                # hatch.set_pattern_scale(1/1000)
         #Prepare find/replace match_dict for dxf generation
         match_dict = {
                 "<REV>":self.settings['render']['first-rev-id'],
@@ -351,8 +389,9 @@ class SolarFarm:
                             Node.Node(
                                     x = road_centerline.interpolate(f).coords[0][0],
                                     y = road_centerline.interpolate(f).coords[0][1],
-                                    asset_type = 'road', #TODO enum 
-                                    width = self.settings['roads']['perimeter']['road-width']
+                                    asset_type = 'roadnode', #TODO enum 
+                                    width = self.settings['roads']['perimeter']['road-width'],
+                                    code = -1
                                     )
                                 )
         #Calculate how wide each strip needs to be
@@ -461,7 +500,20 @@ class SolarFarm:
                                 expanded_length_list = self.expanded_length_list,
                                 )
         #TODO generate perimeter road if set
-        #TODO merge road nodes into one
+        #Merge road nodes into one
+        all_road_nodes = [x for x in self.assets if x.asset_type == 'roadnode']
+        for i in range(-1,100):
+            road_nodes_samecode = [x for x in all_road_nodes if x.code == i]
+            if len(road_nodes_samecode) == 0:
+                break
+            else:
+                #Create a road object with these points
+                self.assets.append(
+                    Road.Road(
+                        self,
+                        road_nodes_samecode
+                    )
+                )
         #TODO inverters? maybe in future
         #If rotated rotate all objects back to original
         if abs(self.settings['site']['azimuth']) > 0:

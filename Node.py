@@ -8,13 +8,15 @@ class Node:
                 x,
                 y,
                 asset_type,
-                width
+                width,
+                code
                 ):
         
         #Create point
         self.asset_poly = Point(x,y)
         self.asset_type = asset_type #TODO enum
         self.width = width
+        self.code = code
 
         # #create polygon strip
         # if align == 'bottom':
