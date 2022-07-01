@@ -12,9 +12,10 @@ site:
 #Configuration for roads within the solar farm
 roads:
   perimeter:
+    include: true #True=add perimeter road, false means no road to add
+    edge-to-perimeter-road: 0 #m, distance from polygon edge to road edge
     road-width: 5 #m, width of perimeter roadway, set to 0 if not required
-    clear-width: 8 #m, width of clearway for road, must be >=road-width
-    turn-radius: 0 #m, minimum turn radius of the roadway. 0=no smoothing
+    clear-width: 5 #TEMP TODO REVERT / USE INTERNAL ROAD DEF
 
 #Define the parameters of the solar PV module to use
 module:
@@ -54,19 +55,16 @@ rows:
   layout-templates: 
   #Use the id from above, r for road. [] means repeat this if possible
   #This is in order of preference, with highest preference at top
-    # - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
-    # - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
-    # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-    # # - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-    # # - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
-    # # - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
-    # # - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
-    # - '[33r]33' #Try 1x 3 string row
-    # - '33' #Try 1x 3 string row
-    - '[3]' #Try 1x 2 string row
-    - '[2]' #Try 1x 2 string row
-    - '[1]' #Try 1x 2 string row
-    # - '1' #Try 1x 2 string row
+    - '[33r]33' #Try 2x 3 string rows + road, ending with 2x 3 string rows
+    - '[33r]3' #Try 2x 3 string rows + road, ending with 1x 3 string row
+    - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    - '[33r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    - '[3r]3' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    - '[3r]2' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    - '[3r]1' #Try 2x 3 string rows + road, ending with 1x 2 string row
+    - '3' #Try 1x 2 string row
+    - '2' #Try 1x 2 string row
+    - '1' #Try 1x 2 string row
 
 #Specify other information for the CAD/PDF render
 render:

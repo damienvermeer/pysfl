@@ -18,6 +18,7 @@ import yaml
 
 #Internal to pysfl imports
 import StripPoly
+import Node
 
 #Class defs start
 #-------------------------------------------------------------------------------
@@ -162,7 +163,10 @@ class SolarFarm:
                                     yfact=1000/ideal_scale,
                                     origin=(0,0)
                                 )     
-            return list(poly_in.exterior.coords)               
+            try: #TODO REVERT TEMP FOR NOW
+                return list(poly_in.exterior.coords)
+            except:
+                return list(poly_in.coords)
         #Draw site boundary
         doc.modelspace().add_polyline2d(
             _helper_prepare_dwg_polygon(self.original_polygon),
@@ -194,7 +198,13 @@ class SolarFarm:
                             dxfattribs={"layer": "SOLAR_ROWS",
                                         'color':2}
                         )
-
+            elif asset.asset_type == 'road':
+                doc.modelspace().add_circle(
+                    _helper_prepare_dwg_polygon(asset.asset_poly)[0],
+                    asset.width/2*1000/ideal_scale,
+                    dxfattribs={"layer": "ROAD",
+                                'color':6}
+                )
         #Prepare find/replace match_dict for dxf generation
         match_dict = {
                 "<REV>":self.settings['render']['first-rev-id'],
@@ -308,7 +318,7 @@ class SolarFarm:
         self.original_polygon = copy.deepcopy(self.polygon)
         #Apply boundary offset by shrinking the polygon
         if self.settings['site']['setback'] > 0:
-            self.polygon = self.polygon.buffer(-10,join_style=2)#self.settings['site']['setback'])
+            self.polygon = self.polygon.buffer(-self.settings['site']['setback'])
         #Move both original_polygon and polygon to the polygon centroid
         #This is to allow easy rotating
         self.original_polygon = affinity.translate(self.original_polygon, 
@@ -325,8 +335,26 @@ class SolarFarm:
                                         origin=self.polygon.centroid
                                         )
         #(If set) generate perimeter road
-        if self.settings['roads']['perimeter'] != 0:
-            pass #TODO implement
+        if self.settings['roads']['perimeter']['include']:
+            #Assumes that clear-width is < setback
+            #TODO add above to validation
+            #Create boundary polygon
+            road_centerline = self.original_polygon.boundary.parallel_offset(
+                                (
+                                    self.settings['roads']['perimeter']['edge-to-perimeter-road']
+                                    + self.settings['roads']['perimeter']['road-width']/2
+                                ),
+                            'right')
+            #Travel along boundary polygon interpolating
+            for f in range(0, int(np.ceil(road_centerline.length)) + 1):
+                self.assets.append(
+                            Node.Node(
+                                    x = road_centerline.interpolate(f).coords[0][0],
+                                    y = road_centerline.interpolate(f).coords[0][1],
+                                    asset_type = 'road', #TODO enum 
+                                    width = self.settings['roads']['perimeter']['road-width']
+                                    )
+                                )
         #Calculate how wide each strip needs to be
         if self.settings['rows']['portrait-mount']:
             row_width = self.settings['module']['dim-width']
@@ -384,7 +412,10 @@ class SolarFarm:
                     length = 0
                     for ichar,char in enumerate(layout_code):
                         if char == 'r':
-                            length += self.settings['roads']['perimeter']['clear-width']
+                            length += (
+                                        self.settings['roads']['perimeter']['clear-width']
+                                        + self.settings['rows']['space-end-row-road']
+                                        )
                         else:
                             #TODO validate, assume is char
                             length += self._internal_calc_row_length(char)
@@ -536,9 +567,10 @@ class SolarFarm:
                     },
                     'roads':{
                         'perimeter': {
+                            'include': bool,
+                            'edge-to-perimeter-road': And(Or(float,int),lambda n: n >= 0),
                             'road-width': And(Or(float,int),lambda n: n >= 0),
                             'clear-width': And(Or(float,int),lambda n: n >= 0),
-                            'turn-radius': And(Or(float,int),lambda n: n >= 0),
                             },
                     },
                     'module':{

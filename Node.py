@@ -5,14 +5,16 @@ class Node:
 
     def __init__(
                 self,                                     
-                x = -1,
-                y = -1,
-                asset_type = None
+                x,
+                y,
+                asset_type,
+                width
                 ):
         
         #Create point
         self.asset_poly = Point(x,y)
-        self.asset_type = None #TODO enum
+        self.asset_type = asset_type #TODO enum
+        self.width = width
 
         # #create polygon strip
         # if align == 'bottom':

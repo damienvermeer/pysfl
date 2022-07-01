@@ -107,16 +107,22 @@ class StripPoly:
                         row_start_y = ytop - residual
                 for ichar,char in enumerate(row_idcode):
                     if char == 'r':
+                        #TODO this should not use 'perimeter'!
                         roadway_width = self.settings['roads']['perimeter']['clear-width']
                         self.super_solarfarm.assets.append(
                             Node.Node(
                                     x = self.maxx - (self.maxx - self.minx)/2,
-                                    y = row_start_y - roadway_width/2,
+                                    y = (
+                                        row_start_y 
+                                        - self.settings['rows']['space-end-row-road']
+                                        - roadway_width/2
+                                        ),
                                     asset_type = 'road', #TODO enum 
+                                    width = roadway_width
                                     )
                                 )
                         #Subtract length from row_start_y
-                        row_start_y -= roadway_width
+                        row_start_y -= roadway_width + self.settings['rows']['space-end-row-road']
                     else:
                         #TODO validate, assume is char
                         rlength = self.super_solarfarm._internal_calc_row_length(char)
