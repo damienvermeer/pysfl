@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pysfl"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Damien Vermeer", email="hello@damienvermeer.com" },
 ]
@@ -19,8 +19,8 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "pyyaml",
-    "shapely",
+    "PyYAML",
+    "Shapely",
     "schema",
     "ezdxf",
     "matplotlib",
