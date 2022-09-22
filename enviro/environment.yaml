@@ -18,4 +18,7 @@ dependencies:
     - numpy==1.22.3
     - pyyaml==6.0
     - shapely==1.8.2
+    - schema==0.7.5
+    - ezdxf==0.18.1
+    - matplotlib==3.5.3
 prefix: C:\Users\verme\.conda\envs\sfl
