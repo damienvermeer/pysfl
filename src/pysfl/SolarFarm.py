@@ -689,8 +689,8 @@ class SolarFarm:
 
 #DEBUG AREA FOR TESTING ONLY - run as imported class normally
 # coords = [(0,0), (0,2000), (2000,2000), (2000,1500), (1000,750), (1000,500), (2000,250), (2000,0)]
-coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
-sftest = SolarFarm(coords)
+# coords = [(0,0), (0,200), (200,200), (200,150), (100,75), (100,50), (200,25), (200,0)]
+# sftest = SolarFarm(coords)
 
-sftest.generate()
-sftest.render(r"C:\Users\verme\Desktop\test")
+# sftest.generate()
+# sftest.render(r"C:\Users\verme\Desktop\test")
