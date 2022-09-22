@@ -1,8 +1,8 @@
 #TODO clean up imports
 from shapely import geometry
 import numpy as np
-import SolarRow
-import Node
+import SolarRow as SolarRow
+import Node as Node
 
 #TODO WIP - NEW CLASS TO CLEAN
 

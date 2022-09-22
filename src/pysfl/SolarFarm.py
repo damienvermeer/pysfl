@@ -17,9 +17,9 @@ import numpy as np
 import yaml
 
 #Internal to pysfl imports
-import StripPoly
-import Node
-import Road
+import StripPoly as StripPoly
+import Node as Node
+import Road as Road
 
 #Class defs start
 #-------------------------------------------------------------------------------
@@ -105,7 +105,7 @@ class SolarFarm:
         #TODO review with dict implementation
         if SolarFarm.is_data_valid(temp_settings): self.settings = temp_settings  
 
-    def render(self, path, override_name=None):
+    def render(self, path, override_name=None, dxf=True):
         """
         Generates a visual representation of the solar farm generated
 
@@ -128,170 +128,172 @@ class SolarFarm:
                     (f"File path \'{path}\' passed to .render() is not valid."
                     ))
         #Generate cad file and export
-        import ezdxf
-        from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
-        #Calculate the biggest scale which will fit
-        #To do this, find the left-right and top-bottom bounding boxes...
-        #... of the main polygon & then scale to a 1:50n style
-        poly_max_vert = self.original_polygon.bounds[3] - self.original_polygon.bounds[1]
-        poly_max_horiz = self.original_polygon.bounds[2] - self.original_polygon.bounds[0]
-        dwg_max_vert = 0.240 #m, only one template for now so hard coded
-        dwg_max_horiz = 0.400 #m, only one template for now so hard coded
-        #Find the scale which best fits the dwg
-        best_scale = max(
-                            math.ceil(poly_max_vert/dwg_max_vert),
-                            math.ceil(poly_max_horiz/dwg_max_horiz)
-                        )   
-        #Scale currently is best_scale:1, which is awkward for dwgs
-        #Change to ideal_scale:1 where ideal_scale%50 = 0
-        def _helper_round_down(num, divisor): return num - (num%divisor)
-        ideal_scale = _helper_round_down(best_scale+50, 50)
-        #TODO the 50 above should eventually be an optional arg
-        #Load DXF template
-        doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
-        #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
-        x,y = Box(*self.polygon.bounds).centroid.xy
-        #Helper function for repeating the translate and rescale
-        def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0], interior=False):
-            poly_in = affinity.translate(  
+        if dxf:
+            import ezdxf
+            from ezdxf.addons.drawing import matplotlib as ezdxfmatplotlib
+            #Calculate the biggest scale which will fit
+            #To do this, find the left-right and top-bottom bounding boxes...
+            #... of the main polygon & then scale to a 1:50n style
+            poly_max_vert = self.original_polygon.bounds[3] - self.original_polygon.bounds[1]
+            poly_max_horiz = self.original_polygon.bounds[2] - self.original_polygon.bounds[0]
+            dwg_max_vert = 0.240 #m, only one template for now so hard coded
+            dwg_max_horiz = 0.400 #m, only one template for now so hard coded
+            #Find the scale which best fits the dwg
+            best_scale = max(
+                                math.ceil(poly_max_vert/dwg_max_vert),
+                                math.ceil(poly_max_horiz/dwg_max_horiz)
+                            )   
+            #Scale currently is best_scale:1, which is awkward for dwgs
+            #Change to ideal_scale:1 where ideal_scale%50 = 0
+            def _helper_round_down(num, divisor): return num - (num%divisor)
+            ideal_scale = _helper_round_down(best_scale+50, 50)
+            #TODO the 50 above should eventually be an optional arg
+            #Load DXF template
+            doc = ezdxf.readfile(Path(__file__).parent / "templates/dxf_template.dxf")
+            #Prepare boundary polygon for draw, translate so MBB centroid is 0,0
+            x,y = Box(*self.polygon.bounds).centroid.xy
+            #Helper function for repeating the translate and rescale
+            def _helper_prepare_dwg_polygon(poly_in, xoff=x[0], yoff=y[0], interior=False):
+                poly_in = affinity.translate(  
+                                            poly_in, 
+                                            xoff=-xoff, 
+                                            yoff=-yoff
+                                        )
+                poly_in = affinity.scale(
                                         poly_in, 
-                                        xoff=-xoff, 
-                                        yoff=-yoff
-                                    )
-            poly_in = affinity.scale(
-                                    poly_in, 
-                                    xfact=1000/ideal_scale, 
-                                    yfact=1000/ideal_scale,
-                                    origin=(0,0)
-                                )     
-            if interior:
-                return list(poly_in.coords)
-            try: #TODO REVERT TEMP FOR NOW
-                return list(poly_in.exterior.coords)
-            except:
-                return list(poly_in.coords)
-        #Draw site boundary
-        doc.modelspace().add_polyline2d(
-            _helper_prepare_dwg_polygon(self.original_polygon),
-            dxfattribs={"layer": "SITE_BOUNDARY",
-                        'color':3}
-        )
-        doc.modelspace().add_polyline2d(
-            _helper_prepare_dwg_polygon(self.polygon),
-            dxfattribs={"layer": "INTERNAL_BOUNDARY",
-                        'color':4}
-        )
-        #Draw assets
-        for asset in self.assets:
-            if asset.asset_type == 'solar_row':
-                if not self.settings['render']['render-all-modules']:
-                    doc.modelspace().add_polyline2d(
-                        _helper_prepare_dwg_polygon(asset.asset_poly),
-                        dxfattribs={"layer": "SOLAR_ROWS",
-                                    'color':2}
-                    )
-                else:
-                    if len(asset.sub_asset_polys) == 0:
-                        raise SolarFarmGenericError(
-                            (f"Current strip has no pretty asset polys to render."
-                            ))
-                    for sub_asset in asset.sub_asset_polys:
+                                        xfact=1000/ideal_scale, 
+                                        yfact=1000/ideal_scale,
+                                        origin=(0,0)
+                                    )     
+                if interior:
+                    return list(poly_in.coords)
+                try: #TODO REVERT TEMP FOR NOW
+                    return list(poly_in.exterior.coords)
+                except:
+                    return list(poly_in.coords)
+            #Draw site boundary
+            doc.modelspace().add_polyline2d(
+                _helper_prepare_dwg_polygon(self.original_polygon),
+                dxfattribs={"layer": "SITE_BOUNDARY",
+                            'color':3}
+            )
+            doc.modelspace().add_polyline2d(
+                _helper_prepare_dwg_polygon(self.polygon),
+                dxfattribs={"layer": "INTERNAL_BOUNDARY",
+                            'color':4}
+            )
+            #Draw assets
+            for asset in self.assets:
+                if asset.asset_type == 'solar_row':
+                    if not self.settings['render']['render-all-modules']:
                         doc.modelspace().add_polyline2d(
-                            _helper_prepare_dwg_polygon(sub_asset),
+                            _helper_prepare_dwg_polygon(asset.asset_poly),
                             dxfattribs={"layer": "SOLAR_ROWS",
                                         'color':2}
                         )
-            # elif asset.asset_type == 'roadnode':
-            #     doc.modelspace().add_circle(
-            #         _helper_prepare_dwg_polygon(asset.asset_poly)[0],
-            #         asset.width/2*1000/ideal_scale,
-            #         dxfattribs={"layer": "ROAD-NODE",
-            #                     'color':6}
-            #     )
-            elif asset.asset_type == 'road':
-                #TEMP WORKAROUND
-                doc.modelspace().add_polyline2d(
-                    _helper_prepare_dwg_polygon(asset.asset_poly),
-                    dxfattribs={"layer": "ROAD",
-                                'color':6}
-                )
-                #TODO remove road hatching, ezdxf doesnt support
-                # hatch = doc.modelspace().add_hatch(
-                #                 color=0,
-                #                 dxfattribs={
-                #                     "hatch_style": ezdxf.const.HATCH_STYLE_NESTED,
-                #                     # 0 = nested: ezdxf.const.HATCH_STYLE_NESTED
-                #                     # 1 = outer: ezdxf.const.HATCH_STYLE_OUTERMOST
-                #                     # 2 = ignore: ezdxf.const.HATCH_STYLE_IGNORE
-                #                 },
-                #             )
-                # hatch.paths.add_polyline_path(
-                #         _helper_prepare_dwg_polygon(asset.asset_poly),
-                #         is_closed=True,
-                #         flags=ezdxf.const.BOUNDARY_PATH_EXTERNAL,
+                    else:
+                        if len(asset.sub_asset_polys) == 0:
+                            raise SolarFarmGenericError(
+                                (f"Current strip has no pretty asset polys to render."
+                                ))
+                        for sub_asset in asset.sub_asset_polys:
+                            doc.modelspace().add_polyline2d(
+                                _helper_prepare_dwg_polygon(sub_asset),
+                                dxfattribs={"layer": "SOLAR_ROWS",
+                                            'color':2}
+                            )
+                # elif asset.asset_type == 'roadnode':
+                #     doc.modelspace().add_circle(
+                #         _helper_prepare_dwg_polygon(asset.asset_poly)[0],
+                #         asset.width/2*1000/ideal_scale,
+                #         dxfattribs={"layer": "ROAD-NODE",
+                #                     'color':6}
                 #     )
-                for intpoly in asset.asset_poly.interiors:
+                elif asset.asset_type == 'road':
+                    #TEMP WORKAROUND
                     doc.modelspace().add_polyline2d(
-                        _helper_prepare_dwg_polygon(intpoly, interior=True),
+                        _helper_prepare_dwg_polygon(asset.asset_poly),
                         dxfattribs={"layer": "ROAD",
                                     'color':6}
                     )
-                #     hatch.paths.add_polyline_path(
-                #         _helper_prepare_dwg_polygon(intpoly, interior=True),
-                #         is_closed=True,
-                #         flags=ezdxf.const.BOUNDARY_PATH_OUTERMOST,
-                #     )
-                # hatch.set_pattern_fill("CROSS")
-                # hatch.set_pattern_scale(1/1000)
-        #Prepare find/replace match_dict for dxf generation
-        match_dict = {
-                "<REV>":self.settings['render']['first-rev-id'],
-                "<REVTEXT>":self.settings['render']['first-rev-line'],
-                "<DATE>":datetime.today().strftime('%d-%m-%Y'),
-                "<PROJNAME>":self.settings['project']['name'],    
-                "<COORDS>":self.settings['site']['loc-coords'],                                                                                                                
-                "<DWGNO>":self.settings['render']['dwg-number'],
-                "<SCALE>":f"1:{ideal_scale:.0f}",
-                "<MWP>":f"{self.results_data['MWp']:.3f}",
-                "<NMODULES>":f"{self.results_data['n_modules']:,}",
-                "<MOD_MANUFACTURER>":self.settings['module']['manufacturer'],
-                "<MOD_MODEL>":self.settings['module']['model'],
-                "<MOD_P>":f"{self.settings['module']['power-stc']:.1f}",
-                "<N_MODS_IN_STRING>":f"{self.settings['strings']['mods-per-string']}",
-                "<AZIMUTH>":f"{self.settings['site']['azimuth']}° T",
-                "<GCR>":f"{self.results_data['gcr']:.1f}",
-                }
-        #Add in scale bar match_dict items
-        for x in range(10,60):
-            match_dict[f"<S{x}>"] = f"{(ideal_scale*x/1000):.1f}"  
-        #Find/replace each text in the file
-        for elm in doc.modelspace().query("TEXT"):
-            for find,match in match_dict.items():
-                elm.dxf.text = elm.dxf.text.replace(find,match) #Use dict as a f/r key
-        #Prepare to export
-        if override_name:
-            output_name = path + "\\" + override_name
+                    #TODO remove road hatching, ezdxf doesnt support
+                    # hatch = doc.modelspace().add_hatch(
+                    #                 color=0,
+                    #                 dxfattribs={
+                    #                     "hatch_style": ezdxf.const.HATCH_STYLE_NESTED,
+                    #                     # 0 = nested: ezdxf.const.HATCH_STYLE_NESTED
+                    #                     # 1 = outer: ezdxf.const.HATCH_STYLE_OUTERMOST
+                    #                     # 2 = ignore: ezdxf.const.HATCH_STYLE_IGNORE
+                    #                 },
+                    #             )
+                    # hatch.paths.add_polyline_path(
+                    #         _helper_prepare_dwg_polygon(asset.asset_poly),
+                    #         is_closed=True,
+                    #         flags=ezdxf.const.BOUNDARY_PATH_EXTERNAL,
+                    #     )
+                    for intpoly in asset.asset_poly.interiors:
+                        doc.modelspace().add_polyline2d(
+                            _helper_prepare_dwg_polygon(intpoly, interior=True),
+                            dxfattribs={"layer": "ROAD",
+                                        'color':6}
+                        )
+                    #     hatch.paths.add_polyline_path(
+                    #         _helper_prepare_dwg_polygon(intpoly, interior=True),
+                    #         is_closed=True,
+                    #         flags=ezdxf.const.BOUNDARY_PATH_OUTERMOST,
+                    #     )
+                    # hatch.set_pattern_fill("CROSS")
+                    # hatch.set_pattern_scale(1/1000)
+            #Prepare find/replace match_dict for dxf generation
+            match_dict = {
+                    "<REV>":self.settings['render']['first-rev-id'],
+                    "<REVTEXT>":self.settings['render']['first-rev-line'],
+                    "<DATE>":datetime.today().strftime('%d-%m-%Y'),
+                    "<PROJNAME>":self.settings['project']['name'],    
+                    "<COORDS>":self.settings['site']['loc-coords'],                                                                                                                
+                    "<DWGNO>":self.settings['render']['dwg-number'],
+                    "<SCALE>":f"1:{ideal_scale:.0f}",
+                    "<MWP>":f"{self.results_data['MWp']:.3f}",
+                    "<NMODULES>":f"{self.results_data['n_modules']:,}",
+                    "<MOD_MANUFACTURER>":self.settings['module']['manufacturer'],
+                    "<MOD_MODEL>":self.settings['module']['model'],
+                    "<MOD_P>":f"{self.settings['module']['power-stc']:.1f}",
+                    "<N_MODS_IN_STRING>":f"{self.settings['strings']['mods-per-string']}",
+                    "<AZIMUTH>":f"{self.settings['site']['azimuth']}° T",
+                    "<GCR>":f"{self.results_data['gcr']:.1f}",
+                    }
+            #Add in scale bar match_dict items
+            for x in range(10,60):
+                match_dict[f"<S{x}>"] = f"{(ideal_scale*x/1000):.1f}"  
+            #Find/replace each text in the file
+            for elm in doc.modelspace().query("TEXT"):
+                for find,match in match_dict.items():
+                    elm.dxf.text = elm.dxf.text.replace(find,match) #Use dict as a f/r key
+            #Prepare to export
+            if override_name:
+                output_name = path + "\\" + override_name
+            else:
+                output_name = path + "\\" + self.settings['render']['dwg-number'] 
+            #Save DXF and PDF
+            doc.saveas(output_name+".dxf")
+            ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf", dpi=800)
         else:
-            output_name = path + "\\" + self.settings['render']['dwg-number'] 
-        #Save DXF and PDF
-        doc.saveas(output_name+".dxf")
-        ezdxfmatplotlib.qsave(doc.modelspace(), output_name+".pdf", dpi=800)
-
-        # #If not dxf, generate a matplotlib representation
-        # import matplotlib.pyplot as plt
-        # plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
-        # plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
-        # for strip in self.strips:
-        #     # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
-        #     for x in strip.intersect_polys:
-        #         plt.plot(*x.exterior.xy,'g',alpha=0.2)
-        # for asset in self.assets:
-        #     if asset.asset_type == 'solar_row':
-        #         plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
-        #     elif asset.asset_type == 'road':
-        #         plt.plot(asset.x, asset.y,'b*',alpha=0.5)
-        # plt.gca().set_aspect('equal', adjustable='box')
-        # plt.show()
+            #Render using matplotlib
+            # #If not dxf, generate a matplotlib representation
+            import matplotlib.pyplot as plt
+            plt.plot(*self.polygon.exterior.xy,'g',linestyle='dashed')
+            plt.plot(*self.original_polygon.exterior.xy,'k',linestyle='dashed')
+            for strip in self.strips:
+                # plt.plot(*strip.box_poly.exterior.xy,'g',alpha=0.2)
+                for x in strip.intersect_polys:
+                    plt.plot(*x.exterior.xy,'g',alpha=0.2)
+            for asset in self.assets:
+                if asset.asset_type == 'solar_row':
+                    plt.plot(*asset.asset_poly.exterior.xy,'r',alpha=0.5)
+                # elif asset.asset_type == 'road':
+                #     plt.plot(asset.x, asset.y,'b*',alpha=0.5)
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.show()
 
     def _internal_convert_idchar_to_row_settings(self,idchar):
         """

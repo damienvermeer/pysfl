@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pysfl"
+version = "0.0.1"
+authors = [
+  { name="Damien Vermeer", email="hello@damienvermeer.com" },
+]
+description = "A small example package"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/damienvermeer/pysfl"
+"Bug Tracker" = "https://github.com/damienvermeer/pysfl/issues"
