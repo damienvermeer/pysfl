@@ -1,8 +1,8 @@
 #TODO clean up imports
 from shapely import geometry
 import numpy as np
-import SolarRow as SolarRow
-import Node as Node
+from pysfl.SolarRow import SolarRow
+from pysfl.Node import Node
 
 #TODO WIP - NEW CLASS TO CLEAN
 
@@ -112,7 +112,7 @@ class StripPoly:
                         #TODO this should not use 'perimeter'!
                         roadway_width = self.settings['roads']['perimeter']['clear-width']
                         self.super_solarfarm.assets.append(
-                            Node.Node(
+                            Node(
                                     x = self.maxx - (self.maxx - self.minx)/2,
                                     y = (
                                         row_start_y 
@@ -140,7 +140,7 @@ class StripPoly:
                                 row_start_y -= self.settings['rows']['space-end-row-row']
                         #Create the solar row
                         self.super_solarfarm.assets.append(
-                            SolarRow.SolarRow(
+                            SolarRow(
                                     idchar = char,
                                     super = self.super_solarfarm,
                                     minx = self.minx, 

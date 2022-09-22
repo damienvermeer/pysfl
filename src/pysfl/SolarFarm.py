@@ -17,9 +17,9 @@ import numpy as np
 import yaml
 
 #Internal to pysfl imports
-import StripPoly as StripPoly
-import Node as Node
-import Road as Road
+from pysfl.StripPoly import StripPoly
+from pysfl.Node import Node
+from pysfl.Road import Road
 
 #Class defs start
 #-------------------------------------------------------------------------------
@@ -388,7 +388,7 @@ class SolarFarm:
             #Travel along boundary polygon interpolating
             for f in range(0, int(np.ceil(road_centerline.length)) + 1):
                 self.assets.append(
-                            Node.Node(
+                            Node(
                                     x = road_centerline.interpolate(f).coords[0][0],
                                     y = road_centerline.interpolate(f).coords[0][1],
                                     asset_type = 'roadnode', #TODO enum 
@@ -413,7 +413,7 @@ class SolarFarm:
         #Now create the strips
         for strip_id,xcoord in enumerate(strip_xcoords):
             #The strip generates its own intersections with self.polygon
-            self.strips.append(StripPoly.StripPoly(
+            self.strips.append(StripPoly(
                                             minx = xcoord - row_width,
                                             miny = self.polygon.bounds[1],
                                             maxx = xcoord + row_width,
@@ -511,7 +511,7 @@ class SolarFarm:
             else:
                 #Create a road object with these points
                 self.assets.append(
-                    Road.Road(
+                    Road(
                         self,
                         road_nodes_samecode
                     )
