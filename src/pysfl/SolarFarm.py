@@ -8,6 +8,7 @@ import copy
 from pathlib import Path
 from datetime import datetime
 import time
+from time import perf_counter
 
 #External imports via pip/conda
 from shapely.geometry import Polygon
@@ -353,7 +354,7 @@ class SolarFarm:
 
         :param ????? TODO
         """  
-        stime_generate = time.time()
+        stime_generate = perf_counter()
         #Save a backup copy of original polygon perimeter for setback plotting
         self.original_polygon = copy.deepcopy(self.polygon)
         #Apply boundary offset by shrinking the polygon
@@ -552,7 +553,7 @@ class SolarFarm:
                  * self.settings['module']['dim-width']
                 ) / self.original_polygon.area * 100 #convert to percentage
         #Return results data
-        etime_generate = time.time()
+        etime_generate = perf_counter()
         self.results_data = {
             'generation_time_us': etime_generate - stime_generate,
             'n_modules' : n_modules,
